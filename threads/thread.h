@@ -24,6 +24,12 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+/*Added global constants*/
+#define MAX_ARGS  128       /*Maximum number of cmd line args*/
+#define WORD_LENGTH 4       /*Length of a word in Pintos*/
+#define STACK_LIMIT  PHYS_BASE - PGSIZE
+#define MAX_FILES 128
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -102,7 +108,20 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    /* Added Variables */
+    int is_waiting;
+    int exit_status;
+    struct file *file_list[MAX_FILES];
   };
+
+// /*Added struct*/
+// struct thread_file
+//   {
+//     struct file *curr_file;
+//     int fd;
+//     struct list_elem file_elem;
+//   };
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

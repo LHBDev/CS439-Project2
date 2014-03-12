@@ -22,9 +22,8 @@ static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
 /*Added global variables*/
-#define MAX_ARGS  128				/*Maximum number of cmd line args*/
 char *argv[MAX_ARGS];				/*Stores the command line args*/
-int argc;										/*Count of how many cmd lne args*/
+int argc;							/*Count of how many cmd lne args*/
 
 /* Starts a new thread running a user program loaded from
 	 FILENAME.  The new thread may be scheduled (and may even exit)
@@ -214,10 +213,6 @@ struct Elf32_Phdr
 #define PF_X 1          /* Executable. */
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
-
-/*Added Definition*/
-#define WORD_LENGTH	4 	/*Length of a word in Pintos*/
-#define STACK_LIMIT  PHYS_BASE - PGSIZE
 
 static bool setup_stack (void **esp);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
@@ -478,10 +473,11 @@ setup_stack (void **esp)
 		{
 			curr_str = argv[i];
 			*esp -= strlen(curr_str) + 1;
-			if((*esp) < STACK_LIMIT) {
-				palloc_free_page (kpage);
-				return false;
-			}
+			if((*esp) < STACK_LIMIT)
+				{
+					palloc_free_page (kpage);
+					return false;
+				}
 			strlcpy((char *) (*esp), curr_str, strlen(curr_str) + 1);
 		}
 
@@ -494,10 +490,11 @@ setup_stack (void **esp)
 	*esp -= WORD_LENGTH;
 	memcpy(*esp, "\0\0\0\0", WORD_LENGTH);
 
-	if(*esp < STACK_LIMIT) {
-		palloc_free_page (kpage);
-		return false;
-	}
+	if(*esp < STACK_LIMIT) 
+		{
+			palloc_free_page (kpage);
+			return false;
+		}
 
 	//Siva stopped driving
 	//Ruben started driving
@@ -509,10 +506,11 @@ setup_stack (void **esp)
 			curr_str = argv[i];
 			temp_ptr -= strlen(curr_str) + 1;
 			*esp -= WORD_LENGTH;
-			if(*esp < STACK_LIMIT) {
-				palloc_free_page (kpage);
-				return false;
-			}
+			if(*esp < STACK_LIMIT) 
+				{
+					palloc_free_page (kpage);
+					return false;
+				}
 			memcpy(*esp, &temp_ptr, WORD_LENGTH);
 		}
 
@@ -529,10 +527,11 @@ setup_stack (void **esp)
 	*esp -= WORD_LENGTH;
 	memcpy(*esp, "\0\0\0\0", WORD_LENGTH);
 
-	if(*esp < STACK_LIMIT) {
-		palloc_free_page (kpage);
-		return false;
-	}
+	if(*esp < STACK_LIMIT)
+		{
+			palloc_free_page (kpage);
+			return false;
+		}
 
 	//Ruben stopped driving
 	return success;
