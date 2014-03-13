@@ -1,5 +1,6 @@
 #include "userprog/syscall.h"
 #include "userprog/pagedir.h"
+#include "userprog/process.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
@@ -116,13 +117,20 @@ exit (int status)
 pid_t
 exec (const char *cmd_line)
 {
-	return 0;
+  struct thread *cur = thread_current();
+  pid_t new_pid;
+  sema_init(&cur->exec_sema, 0);
+  //Ecc here
+
+  new_pid = process_execute(cmd_line);
+  sema_down(&cur->exec_sema);
+	return new_pid;
 }
 
 int
 wait (pid_t pid)
 {
-	return 0;
+	return process_wait(pid);
 }
 
 bool

@@ -110,11 +110,15 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
 
     /* Added Variables */
-    int is_waiting;
-    int exit_status;
     bool is_user_process;
-    struct semaphore exec_sema;
+    struct semaphore *exec_sema;
+    struct semaphore *wait_sema;
+    //Keep a list of children
+    struct list_elem child_elem;
+    struct list child_list;
     struct file *file_list[MAX_FILES];
+    //keep track of the child's executable file, need to close it later
+    //might want to keep trrack of exit status and load status
   };
 
 // /*Added struct*/

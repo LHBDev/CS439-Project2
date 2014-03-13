@@ -17,13 +17,14 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
 /*Added global variables*/
 char *argv[MAX_ARGS];				/*Stores the command line args*/
-int argc;							/*Count of how many cmd lne args*/
+int argc;										/*Count of how many cmd lne args*/
 
 /* Starts a new thread running a user program loaded from
 	 FILENAME.  The new thread may be scheduled (and may even exit)
@@ -36,7 +37,7 @@ process_execute (const char *file_name)
 	tid_t tid;
 	//Added local variables
 	char *token, *save_ptr;
-	int index = 0;
+	int index = 0; 
 	argc = 0;
 
 	/* Make a copy of FILE_NAME.
@@ -57,8 +58,10 @@ process_execute (const char *file_name)
 
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+	if(strcmp(thread_current()->name, "main"))
+		sema_up(&thread_current()->exec_sema);
 	if (tid == TID_ERROR)
-		palloc_free_page (fn_copy); 
+		palloc_free_page (fn_copy);
 	return tid;
 }
 
@@ -79,6 +82,7 @@ start_process (void *file_name_)
 	success = load (file_name, &if_.eip, &if_.esp);
 	//ADDED Code
 	thread_current()->is_user_process = true;
+	strlcpy(thread_current()->name, argv[0], strlen(argv[0]) + 1);
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
@@ -107,6 +111,10 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+	struct thread *cur = thread_current();
+	sema_init(&cur->wait_sema, 0);
+
+	//Loop through the parent's children
 	while(1) {
 	}
 	return -1;
@@ -118,6 +126,8 @@ process_exit (void)
 {
 	struct thread *cur = thread_current ();
 	uint32_t *pd;
+
+	//close the child exec file
 
 	/* Destroy the current process's page directory and switch back
 		 to the kernel-only page directory. */
@@ -249,6 +259,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 			printf ("load: %s: open failed\n", file_name);
 			goto done; 
 		}
+	file_deny_write(file);
 
 	/* Read and verify executable header. */
 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
