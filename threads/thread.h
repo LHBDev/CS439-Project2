@@ -112,6 +112,8 @@ struct thread
     /* Added Variables */
     int is_waiting;
     int exit_status;
+    bool is_user_process;
+    struct semaphore exec_sema;
     struct file *file_list[MAX_FILES];
   };
 

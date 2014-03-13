@@ -39,8 +39,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   if(call_num == SYS_HALT)
     halt();
 
-  f->esp += WORD_LENGTH;
-  first_arg = * (int *) (f->esp);
+  first_arg = * (int *) (f->esp + WORD_LENGTH);
   //1 argument system calls
   if (call_num == SYS_EXIT) 
     {
@@ -75,8 +74,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       close(first_arg);
     }
 
-  f->esp += WORD_LENGTH;
-  second_arg = * (int *) (f->esp);
+  second_arg = * (int *) (f->esp + (2 * WORD_LENGTH));
   //2 argument system calls
   if (call_num == SYS_CREATE)
     {
@@ -87,8 +85,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       seek(first_arg, (unsigned) second_arg);
     }
 
-  f->esp += WORD_LENGTH;
-  third_arg = * (int *) (f->esp);
+  third_arg = * (int *) (f->esp + (3 * WORD_LENGTH));
   //3 argument system calls
   if (call_num == SYS_READ)
     {
@@ -109,10 +106,11 @@ halt (void)
 void
 exit (int status)
 {
+  struct thread *cur = thread_current();
   //Possibly notify a waiting parent process of status
-  //TODO
-  thread_exit ();
-  printf("%s: exit(%d)\n", thread_current()->name, status);
+  if(cur->is_user_process)
+    printf("%s: exit(%d)\n", cur->name, status);
+  thread_exit();
 }
 
 pid_t
@@ -134,7 +132,7 @@ create (const char *file, unsigned initial_size)
   //ECC here
 
   lock_acquire(&file_lock);
-  success = filesys_create (file, initial_size);
+  success = filesys_create(file, initial_size);
   lock_release(&file_lock);
 	return success;
 }
@@ -158,6 +156,9 @@ open (const char *file)
   struct thread *cur = thread_current();
   int i, fd;
   //ECC here
+  
+  if(!file)
+    return -1;
 
   lock_acquire(&file_lock);
   actual_file = filesys_open(file);
@@ -200,6 +201,8 @@ read (int fd, void *buffer, unsigned size)
   int bytes_read = 0;
   unsigned size_copy = size;
   //ECC here
+  if(!pointer_valid(buffer))
+    exit(-1);
 
   lock_acquire(&file_lock);
   //Read from stdin
@@ -229,6 +232,8 @@ write (int fd, const void *buffer, unsigned size)
   struct file *fd_file;
   int bytes_written = 0;
   //ECC here
+  if(!pointer_valid(buffer))
+    exit(-1);
 
   lock_acquire(&file_lock);
   //Write to stdout
@@ -295,9 +300,11 @@ close (int fd)
 bool
 pointer_valid (void * given_addr)
 {
-  if(!given_addr || is_kernel_vaddr(given_addr))
+  if(!(given_addr) || is_kernel_vaddr(given_addr))
     return false;
   //ALSO CHECK IF VADDR IS UNMAPPED OR NOT
+  // if(!pagedir_get_page(&given_addr, given_addr))
+  //   return false;
   return true;
 }
 
