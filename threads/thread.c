@@ -209,6 +209,9 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  //ADDED CODE
+  t->parent = thread_current();
+
   return tid;
 }
 

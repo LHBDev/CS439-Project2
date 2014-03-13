@@ -73,6 +73,8 @@ start_process (void *file_name_)
 	char *file_name = file_name_;
 	struct intr_frame if_;
 	bool success;
+	//Added vars
+	struct thread *child;
 
 	/* Initialize interrupt frame and load executable. */
 	memset (&if_, 0, sizeof if_);
@@ -81,8 +83,9 @@ start_process (void *file_name_)
 	if_.eflags = FLAG_IF | FLAG_MBS;
 	success = load (file_name, &if_.eip, &if_.esp);
 	//ADDED Code
-	thread_current()->is_user_process = true;
-	strlcpy(thread_current()->name, argv[0], strlen(argv[0]) + 1);
+	child = thread_current();
+	child->is_user_process = true;
+	strlcpy(child->name, argv[0], strlen(argv[0]) + 1);
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
@@ -126,8 +129,6 @@ process_exit (void)
 {
 	struct thread *cur = thread_current ();
 	uint32_t *pd;
-
-	//close the child exec file
 
 	/* Destroy the current process's page directory and switch back
 		 to the kernel-only page directory. */
@@ -259,7 +260,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
 			printf ("load: %s: open failed\n", file_name);
 			goto done; 
 		}
-	file_deny_write(file);
+
+	// //Added code
+	// t->exec_file = file;
+	// file_deny_write(file);
 
 	/* Read and verify executable header. */
 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr

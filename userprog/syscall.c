@@ -109,6 +109,7 @@ exit (int status)
 {
   struct thread *cur = thread_current();
   //Possibly notify a waiting parent process of status
+  // file_close(cur->exec_file);
   if(cur->is_user_process)
     printf("%s: exit(%d)\n", cur->name, status);
   thread_exit();
