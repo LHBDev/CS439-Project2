@@ -111,15 +111,16 @@ struct thread
 
     /* Added Variables */
     bool is_user_process;               /**/
-    struct semaphore *exec_sema;        /**/
+    bool has_loaded_process;            /**/
+    bool has_waited;                    /**/
+    bool is_alive;
+    int exit_status;                    /**/
+    struct semaphore *load_sema;        /**/
     struct semaphore *wait_sema;        /**/
-    struct thread *parent;              /**/
+    struct thread *parent;
     struct list_elem child_elem;        /**/
     struct list child_list;             /**/
-    struct file *exec_file;             /**/
     struct file *file_list[MAX_FILES];  /**/
-    //keep track of the child's executable file, need to close it later
-    //might want to keep trrack of exit status and load status
   };
 
 // /*Added struct*/

@@ -58,8 +58,8 @@ process_execute (const char *file_name)
 
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-	if(strcmp(thread_current()->name, "main"))
-		sema_up(&thread_current()->exec_sema);
+	// sema_down(&thread_current()->load_sema);
+
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -74,7 +74,7 @@ start_process (void *file_name_)
 	struct intr_frame if_;
 	bool success;
 	//Added vars
-	struct thread *child;
+	struct thread *child = thread_current();
 
 	/* Initialize interrupt frame and load executable. */
 	memset (&if_, 0, sizeof if_);
@@ -83,9 +83,10 @@ start_process (void *file_name_)
 	if_.eflags = FLAG_IF | FLAG_MBS;
 	success = load (file_name, &if_.eip, &if_.esp);
 	//ADDED Code
-	child = thread_current();
 	child->is_user_process = true;
 	strlcpy(child->name, argv[0], strlen(argv[0]) + 1);
+	child->has_loaded_process = success;
+	// sema_up(&child->parent->load_sema);
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
@@ -112,15 +113,44 @@ start_process (void *file_name_)
 	 This function will be implemented in problem 2-2.  For now, it
 	 does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-	struct thread *cur = thread_current();
-	sema_init(&cur->wait_sema, 0);
+	struct list child_list = thread_current()->child_list;
+	struct thread *child;
+	struct list_elem *e, *target;
+	bool match_found = false;
+	int result = -1;
 
-	//Loop through the parent's children
-	while(1) {
-	}
-	return -1;
+
+	for (e = list_begin (&child_list); e != list_end (&child_list);
+			 e = list_next (e))
+		{
+			child = list_entry (e, struct thread, child_elem);
+			if(child->tid == child_tid)
+				{
+					match_found = true;
+					if(child->has_waited)
+						return -1;
+					child->has_waited = true;
+					target = e;
+					if(child->is_alive)
+						{
+							sema_down(&thread_current()->wait_sema);
+							result = child->exit_status;
+						}
+					else
+						return -1;
+					return result;
+				}
+		}
+
+	if(!match_found)
+		return -1;
+	list_remove(target);
+
+	// while(1) {
+	// }
+	return result;
 }
 
 /* Free the current process's resources. */
@@ -261,9 +291,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
 			goto done; 
 		}
 
-	// //Added code
-	// t->exec_file = file;
-	// file_deny_write(file);
+	//Added code
+	file_deny_write(file);
 
 	/* Read and verify executable header. */
 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -483,7 +512,6 @@ setup_stack (void **esp)
 		}
 
 	//Siva started driving
-
 	*esp = PHYS_BASE;
 	//Push the cmd line strings onto the stack
 	for(i = argc - 1; i >= 0; i--)

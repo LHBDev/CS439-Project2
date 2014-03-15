@@ -108,8 +108,10 @@ void
 exit (int status)
 {
   struct thread *cur = thread_current();
-  //Possibly notify a waiting parent process of status
-  // file_close(cur->exec_file);
+
+  cur->exit_status = status;
+  cur->is_alive = false;
+  sema_up(&cur->parent->wait_sema);
   if(cur->is_user_process)
     printf("%s: exit(%d)\n", cur->name, status);
   thread_exit();
@@ -119,12 +121,15 @@ pid_t
 exec (const char *cmd_line)
 {
   struct thread *cur = thread_current();
+  struct thread *child;
   pid_t new_pid;
-  sema_init(&cur->exec_sema, 0);
   //Ecc here
 
   new_pid = process_execute(cmd_line);
-  sema_down(&cur->exec_sema);
+  // sema_down(&thread_current()->load_sema);
+  child = list_entry(list_back(&cur->child_list), struct thread, child_elem);
+  if(!child->has_loaded_process)
+    new_pid = -1;
 	return new_pid;
 }
 
