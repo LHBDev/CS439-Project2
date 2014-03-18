@@ -57,7 +57,7 @@ process_execute (const char *file_name)
 	//Ruben stopped driving
 
 	/* Create a new thread to execute FILE_NAME. */
-	tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+	tid = thread_create (argv[0], PRI_DEFAULT, start_process, fn_copy);
 	// sema_down(&thread_current()->load_sema);
 
 	if (tid == TID_ERROR)
@@ -84,7 +84,6 @@ start_process (void *file_name_)
 	success = load (file_name, &if_.eip, &if_.esp);
 	//ADDED Code
 	child->is_user_process = true;
-	strlcpy(child->name, argv[0], strlen(argv[0]) + 1);
 	child->has_loaded_process = success;
 	// sema_up(&child->parent->load_sema);
 
@@ -121,7 +120,6 @@ process_wait (tid_t child_tid)
 	bool match_found = false;
 	int result = -1;
 
-
 	for (e = list_begin (&child_list); e != list_end (&child_list);
 			 e = list_next (e))
 		{
@@ -146,7 +144,8 @@ process_wait (tid_t child_tid)
 
 	if(!match_found)
 		return -1;
-	list_remove(target);
+	else
+		list_remove(target);
 
 	// while(1) {
 	// }
@@ -293,6 +292,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 	//Added code
 	file_deny_write(file);
+	t->exec_file = file;
 
 	/* Read and verify executable header. */
 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -377,7 +377,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
 	/* We arrive here whether the load is successful or not. */
-	file_close (file);
 	return success;
 }
 

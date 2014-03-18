@@ -186,7 +186,7 @@ thread_create (const char *name, int priority,
 
 	//Added code
 	t->parent = thread_current();
-	if(strcmp(t->name, "idle") != 0)
+	// if(strcmp(t->name, "idle") != 0)
 		list_push_back(&thread_current()->child_list, &t->child_elem);
 
 	/* Prepare thread for first run by initializing its stack.

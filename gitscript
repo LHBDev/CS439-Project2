@@ -1,4 +1,4 @@
 #!/bin/sh
 git add *
-git commit -m "Exec has bugs, still need to check user mem"
+git commit -m "15 more tests, wait and exec are crap"
 git push -u origin master

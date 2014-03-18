@@ -17,6 +17,7 @@ static void syscall_handler (struct intr_frame *);
 
 /*Helper Functions*/
 bool pointer_valid (void * given_addr);
+bool fd_valid (int fd);
 struct file * fd_to_file (int fd);
 
 /*Added global variables*/
@@ -32,9 +33,13 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-	int first_arg, second_arg, third_arg;
+	int call_num, first_arg, second_arg, third_arg;
+
+  if(!pointer_valid(f->esp))
+    exit(-1); 
+
   //Get the system call number
-  int call_num = * (int *) (f->esp);
+  call_num =  * (int *) (f->esp);
 
 	//0 argument system calls
   if(call_num == SYS_HALT)
@@ -109,11 +114,16 @@ exit (int status)
 {
   struct thread *cur = thread_current();
 
+  lock_acquire(&file_lock);
+  file_close(cur->exec_file);
+  lock_release(&file_lock);
+
   cur->exit_status = status;
   cur->is_alive = false;
   sema_up(&cur->parent->wait_sema);
   if(cur->is_user_process)
     printf("%s: exit(%d)\n", cur->name, status);
+
   thread_exit();
 }
 
@@ -123,10 +133,12 @@ exec (const char *cmd_line)
   struct thread *cur = thread_current();
   struct thread *child;
   pid_t new_pid;
-  //Ecc here
+
+  if(!pointer_valid((void *) cmd_line))
+    exit(-1);
 
   new_pid = process_execute(cmd_line);
-  // sema_down(&thread_current()->load_sema);
+  // sema_up(&thread_current()->load_sema);
   child = list_entry(list_back(&cur->child_list), struct thread, child_elem);
   if(!child->has_loaded_process)
     new_pid = -1;
@@ -143,7 +155,9 @@ bool
 create (const char *file, unsigned initial_size)
 {
   bool success;
-  //ECC here
+
+  if(!pointer_valid((void *) file))
+    exit(-1);
 
   lock_acquire(&file_lock);
   success = filesys_create(file, initial_size);
@@ -155,7 +169,9 @@ bool
 remove (const char *file)
 {
   bool success;
-  //ECC here
+
+  if(!pointer_valid((void *) file))
+    exit(-1);
 
   lock_acquire(&file_lock);
   success = filesys_remove(file);
@@ -169,10 +185,9 @@ open (const char *file)
   struct file *actual_file;
   struct thread *cur = thread_current();
   int i, fd;
-  //ECC here
   
-  if(!file)
-    return -1;
+  if(!pointer_valid((void *) file))
+    exit(-1);
 
   lock_acquire(&file_lock);
   actual_file = filesys_open(file);
@@ -197,11 +212,13 @@ filesize (int fd)
 {
   struct file *fd_file;
 
+  if(!fd_valid(fd))
+    exit(-1);
+
   lock_acquire(&file_lock);
   fd_file = fd_to_file(fd);
   lock_release(&file_lock);
 
-  //ECC here, might need to change
   if(!fd_file)
     return 0;
 
@@ -214,8 +231,8 @@ read (int fd, void *buffer, unsigned size)
   struct file *fd_file;
   int bytes_read = 0;
   unsigned size_copy = size;
-  //ECC here
-  if(!pointer_valid(buffer))
+
+  if(!pointer_valid(buffer) || !fd_valid(fd))
     exit(-1);
 
   lock_acquire(&file_lock);
@@ -245,8 +262,8 @@ write (int fd, const void *buffer, unsigned size)
 {
   struct file *fd_file;
   int bytes_written = 0;
-  //ECC here
-  if(!pointer_valid(buffer))
+
+  if(!pointer_valid((void *) buffer) || !fd_valid(fd))
     exit(-1);
 
   lock_acquire(&file_lock);
@@ -271,6 +288,9 @@ seek (int fd, unsigned position)
 {
   struct file *fd_file;
 
+  if(!fd_valid(fd))
+    exit(-1);
+
   lock_acquire(&file_lock);
   fd_file = fd_to_file(fd);
   if(fd_file)
@@ -283,6 +303,9 @@ tell (int fd)
 {
   struct file *fd_file;
   unsigned result_pos = 0;
+
+  if(!fd_valid(fd))
+    exit(-1);
 
   lock_acquire(&file_lock);
   fd_file = fd_to_file(fd);
@@ -298,7 +321,9 @@ close (int fd)
 {
   struct file *fd_file;
   struct thread *cur = thread_current();
-  //ECC here
+ 
+  if(!fd_valid(fd))
+    exit(-1);
 
   lock_acquire(&file_lock);
   fd_file = fd_to_file(fd);
@@ -316,9 +341,18 @@ pointer_valid (void * given_addr)
 {
   if(!(given_addr) || is_kernel_vaddr(given_addr))
     return false;
-  //ALSO CHECK IF VADDR IS UNMAPPED OR NOT
-  // if(!pagedir_get_page(&given_addr, given_addr))
-  //   return false;
+
+  if(!pagedir_get_page(thread_current()->pagedir, given_addr))
+    return false;
+
+  return true;
+}
+
+bool
+fd_valid (int fd)
+{
+  if(fd < 0 || fd >= MAX_FILES)
+    return false;
   return true;
 }
 
@@ -335,14 +369,6 @@ fd_to_file (int fd)
   for(i = 2; i < MAX_FILES; i++)
       if(fd == i)
         fd_file = cur->file_list[i];
-
-  // for (e = list_begin (&cur->file_list); e != list_end (&cur->file_list);
-  //      e = list_next (e))
-  //   {
-  //     f = list_entry (e, struct thread_file, file_elem);
-  //     if(f->fd == fd)
-  //       fd_file = f->curr_file;
-  //   }
 
   return fd_file;
 }

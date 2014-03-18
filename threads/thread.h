@@ -121,6 +121,7 @@ struct thread
     struct list_elem child_elem;        /**/
     struct list child_list;             /**/
     struct file *file_list[MAX_FILES];  /**/
+    struct file *exec_file;
   };
 
 // /*Added struct*/
