@@ -184,10 +184,10 @@ thread_create (const char *name, int priority,
 	init_thread (t, name, priority);
 	tid = t->tid = allocate_tid ();
 
-	//Added code
+	//Point created thread to the parent
 	t->parent = thread_current();
 	// if(strcmp(t->name, "idle") != 0)
-		list_push_back(&thread_current()->child_list, &t->child_elem);
+	// list_push_back(&thread_current()->child_list, &t->child_elem);
 
 	/* Prepare thread for first run by initializing its stack.
 		 Do this atomically so intermediate values for the 'stack' 
@@ -477,8 +477,8 @@ init_thread (struct thread *t, const char *name, int priority)
 	t->magic = THREAD_MAGIC;
 	list_push_back (&all_list, &t->allelem);
 
-	//Added code
-	list_init(&t->child_list);
+	//Initialize the variables of the created thread
+	// list_init(&t->child_list);
 	sema_init(&t->load_sema, 0);
 	sema_init(&t->wait_sema, 0);
 	t->has_waited = false;
@@ -557,6 +557,27 @@ thread_schedule_tail (struct thread *prev)
 			palloc_free_page (prev);
 		}
 }
+
+/* Start of added method */
+/* Finds a thread of the given tid in the all thread's list.
+   Returns the appropriate thread * if the result is found
+   or NULL if tid does not exist. */
+struct thread *
+tid_to_thread(tid_t tid)
+{
+	struct thread *child = NULL;
+	struct list_elem *e;
+
+	for (e = list_begin (&all_list); e != list_end (&all_list);
+			 e = list_next (e))
+		{
+			child = list_entry (e, struct thread, allelem);
+			if(child->tid == tid)
+				break;
+		}
+	return child;
+}
+/* End of added method */
 
 /* Schedules a new process.  At entry, interrupts must be off and
 	 the running process's state must have been changed from

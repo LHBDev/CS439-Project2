@@ -7,15 +7,15 @@
 
 /* States in a thread's life cycle. */
 enum thread_status
-  {
-    THREAD_RUNNING,     /* Running thread. */
-    THREAD_READY,       /* Not running but ready to run. */
-    THREAD_BLOCKED,     /* Waiting for an event to trigger. */
-    THREAD_DYING        /* About to be destroyed. */
-  };
+	{
+		THREAD_RUNNING,     /* Running thread. */
+		THREAD_READY,       /* Not running but ready to run. */
+		THREAD_BLOCKED,     /* Waiting for an event to trigger. */
+		THREAD_DYING        /* About to be destroyed. */
+	};
 
 /* Thread identifier type.
-   You can redefine this to whatever type you like. */
+	 You can redefine this to whatever type you like. */
 typedef int tid_t;
 #define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
 
@@ -27,114 +27,106 @@ typedef int tid_t;
 /*Added global constants*/
 #define MAX_ARGS  128       /*Maximum number of cmd line args*/
 #define WORD_LENGTH 4       /*Length of a word in Pintos*/
-#define STACK_LIMIT  PHYS_BASE - PGSIZE
-#define MAX_FILES 128
+#define STACK_LIMIT  PHYS_BASE - PGSIZE /* How much stack can grow to */
+#define MAX_FILES 128				/* Maximum number of files a thread can have */
 
 /* A kernel thread or user process.
 
-   Each thread structure is stored in its own 4 kB page.  The
-   thread structure itself sits at the very bottom of the page
-   (at offset 0).  The rest of the page is reserved for the
-   thread's kernel stack, which grows downward from the top of
-   the page (at offset 4 kB).  Here's an illustration:
+	 Each thread structure is stored in its own 4 kB page.  The
+	 thread structure itself sits at the very bottom of the page
+	 (at offset 0).  The rest of the page is reserved for the
+	 thread's kernel stack, which grows downward from the top of
+	 the page (at offset 4 kB).  Here's an illustration:
 
-        4 kB +---------------------------------+
-             |          kernel stack           |
-             |                |                |
-             |                |                |
-             |                V                |
-             |         grows downward          |
-             |                                 |
-             |                                 |
-             |                                 |
-             |                                 |
-             |                                 |
-             |                                 |
-             |                                 |
-             |                                 |
-             +---------------------------------+
-             |              magic              |
-             |                :                |
-             |                :                |
-             |               name              |
-             |              status             |
-        0 kB +---------------------------------+
+				4 kB +---------------------------------+
+						 |          kernel stack           |
+						 |                |                |
+						 |                |                |
+						 |                V                |
+						 |         grows downward          |
+						 |                                 |
+						 |                                 |
+						 |                                 |
+						 |                                 |
+						 |                                 |
+						 |                                 |
+						 |                                 |
+						 |                                 |
+						 +---------------------------------+
+						 |              magic              |
+						 |                :                |
+						 |                :                |
+						 |               name              |
+						 |              status             |
+				0 kB +---------------------------------+
 
-   The upshot of this is twofold:
+	 The upshot of this is twofold:
 
-      1. First, `struct thread' must not be allowed to grow too
-         big.  If it does, then there will not be enough room for
-         the kernel stack.  Our base `struct thread' is only a
-         few bytes in size.  It probably should stay well under 1
-         kB.
+			1. First, `struct thread' must not be allowed to grow too
+				 big.  If it does, then there will not be enough room for
+				 the kernel stack.  Our base `struct thread' is only a
+				 few bytes in size.  It probably should stay well under 1
+				 kB.
 
-      2. Second, kernel stacks must not be allowed to grow too
-         large.  If a stack overflows, it will corrupt the thread
-         state.  Thus, kernel functions should not allocate large
-         structures or arrays as non-static local variables.  Use
-         dynamic allocation with malloc() or palloc_get_page()
-         instead.
+			2. Second, kernel stacks must not be allowed to grow too
+				 large.  If a stack overflows, it will corrupt the thread
+				 state.  Thus, kernel functions should not allocate large
+				 structures or arrays as non-static local variables.  Use
+				 dynamic allocation with malloc() or palloc_get_page()
+				 instead.
 
-   The first symptom of either of these problems will probably be
-   an assertion failure in thread_current(), which checks that
-   the `magic' member of the running thread's `struct thread' is
-   set to THREAD_MAGIC.  Stack overflow will normally change this
-   value, triggering the assertion.  (So don't add elements below 
-   THREAD_MAGIC.)
+	 The first symptom of either of these problems will probably be
+	 an assertion failure in thread_current(), which checks that
+	 the `magic' member of the running thread's `struct thread' is
+	 set to THREAD_MAGIC.  Stack overflow will normally change this
+	 value, triggering the assertion.  (So don't add elements below 
+	 THREAD_MAGIC.)
 */
 /* The `elem' member has a dual purpose.  It can be an element in
-   the run queue (thread.c), or it can be an element in a
-   semaphore wait list (synch.c).  It can be used these two ways
-   only because they are mutually exclusive: only a thread in the
-   ready state is on the run queue, whereas only a thread in the
-   blocked state is on a semaphore wait list. */
+	 the run queue (thread.c), or it can be an element in a
+	 semaphore wait list (synch.c).  It can be used these two ways
+	 only because they are mutually exclusive: only a thread in the
+	 ready state is on the run queue, whereas only a thread in the
+	 blocked state is on a semaphore wait list. */
 struct thread
-  {
-    /* Owned by thread.c. */
-    tid_t tid;                          /* Thread identifier. */
-    enum thread_status status;          /* Thread state. */
-    char name[16];                      /* Name (for debugging purposes). */
-    uint8_t *stack;                     /* Saved stack pointer. */
-    int priority;                       /* Priority. */
-    struct list_elem allelem;           /* List element for all threads list. */
+	{
+		/* Owned by thread.c. */
+		tid_t tid;                          /* Thread identifier. */
+		enum thread_status status;          /* Thread state. */
+		char name[16];                      /* Name (for debugging purposes). */
+		uint8_t *stack;                     /* Saved stack pointer. */
+		int priority;                       /* Priority. */
+		struct list_elem allelem;           /* List element for all threads list. */
 
-    /* Shared between thread.c and synch.c. */
-    struct list_elem elem;              /* List element. */
+		/* Shared between thread.c and synch.c. */
+		struct list_elem elem;              /* List element. */
 
 #ifdef USERPROG
-    /* Owned by userprog/process.c. */
-    uint32_t *pagedir;                  /* Page directory. */
+		/* Owned by userprog/process.c. */
+		uint32_t *pagedir;                  /* Page directory. */
 #endif
 
-    /* Owned by thread.c. */
-    unsigned magic;                     /* Detects stack overflow. */
+		/* Owned by thread.c. */
+		unsigned magic;                     /* Detects stack overflow. */
 
-    /* Added Variables */
-    bool is_user_process;               /**/
-    bool has_loaded_process;            /**/
-    bool has_waited;                    /**/
-    bool is_alive;
-    int exit_status;                    /**/
-    struct semaphore *load_sema;        /**/
-    struct semaphore *wait_sema;        /**/
-    struct thread *parent;
-    struct list_elem child_elem;        /**/
-    struct list child_list;             /**/
-    struct file *file_list[MAX_FILES];  /**/
-    struct file *exec_file;
-  };
-
-// /*Added struct*/
-// struct thread_file
-//   {
-//     struct file *curr_file;
-//     int fd;
-//     struct list_elem file_elem;
-//   };
+		/* Added Variables */
+		bool is_user_process;               /* True if a user process*/
+		bool has_loaded_process;            /* Has child loaded file */
+		bool has_waited;                    /* Has child been waited on before */
+		bool is_alive;                      /* Has the child exited or not */
+		int child_exit_status;              /* Exit status of A child */
+		struct semaphore *load_sema;        /* Waits the parent for child load */
+		struct semaphore *wait_sema;        /* Waits the parent for child exit */
+		struct thread *parent;              /* Pointer to the child's parent */
+		// struct list_elem child_elem;        /**/
+		// struct list child_list;             /**/
+		struct file *file_list[MAX_FILES];  /* List of files that a thread has */
+		struct file *exec_file;							/* Exec file that thread is running */
+	};
 
 /* If false (default), use round-robin scheduler.
-   If true, use multi-level feedback queue scheduler.
-   Controlled by kernel command-line option "-o mlfqs". */
+	 If true, use multi-level feedback queue scheduler.
+	 Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
 
 void thread_init (void);
@@ -167,5 +159,8 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+/*Added method*/
+struct thread * tid_to_thread(tid_t tid);
 
 #endif /* threads/thread.h */

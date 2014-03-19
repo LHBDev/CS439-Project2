@@ -58,7 +58,8 @@ process_execute (const char *file_name)
 
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (argv[0], PRI_DEFAULT, start_process, fn_copy);
-	// sema_down(&thread_current()->load_sema);
+	printf("\n\n1: %s\n\n", thread_current()->name);
+	sema_down(&thread_current()->load_sema);
 
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
@@ -85,7 +86,8 @@ start_process (void *file_name_)
 	//ADDED Code
 	child->is_user_process = true;
 	child->has_loaded_process = success;
-	// sema_up(&child->parent->load_sema);
+	printf("\n\n2: %s\n\n", child->parent->name);
+	sema_up(&child->parent->load_sema);
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
@@ -114,42 +116,26 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-	struct list child_list = thread_current()->child_list;
-	struct thread *child;
-	struct list_elem *e, *target;
-	bool match_found = false;
-	int result = -1;
+	struct thread *child, *cur;
 
-	for (e = list_begin (&child_list); e != list_end (&child_list);
-			 e = list_next (e))
-		{
-			child = list_entry (e, struct thread, child_elem);
-			if(child->tid == child_tid)
-				{
-					match_found = true;
-					if(child->has_waited)
-						return -1;
-					child->has_waited = true;
-					target = e;
-					if(child->is_alive)
-						{
-							sema_down(&thread_current()->wait_sema);
-							result = child->exit_status;
-						}
-					else
-						return -1;
-					return result;
-				}
-		}
-
-	if(!match_found)
+	child = tid_to_thread(child_tid);
+	cur = thread_current();
+	if(child == NULL)
 		return -1;
-	else
-		list_remove(target);
 
-	// while(1) {
-	// }
-	return result;
+	if(child->parent->name != cur->name)
+		return -1;
+
+	if(child->has_waited)
+		return -1;
+	child->has_waited = true;
+	if(child->is_alive)
+		{
+			sema_down(&cur->wait_sema);
+			return cur->child_exit_status;
+		}
+	else
+		return -1;
 }
 
 /* Free the current process's resources. */
@@ -530,6 +516,12 @@ setup_stack (void **esp)
 	*esp -= word_align;
 	memcpy(*esp, "\0", word_align);
 
+	if(*esp < STACK_LIMIT) 
+		{
+			palloc_free_page (kpage);
+			return false;
+		}
+
 	//Push the null sentinel
 	*esp -= WORD_LENGTH;
 	memcpy(*esp, "\0\0\0\0", WORD_LENGTH);
@@ -563,9 +555,21 @@ setup_stack (void **esp)
 	*esp -= WORD_LENGTH;
 	memcpy(*esp, &temp_ptr, WORD_LENGTH);
 
+	if(*esp < STACK_LIMIT) 
+		{
+			palloc_free_page (kpage);
+			return false;
+		}
+
 	//Push argc
 	*esp -= WORD_LENGTH;
 	memcpy(*esp, &argc, WORD_LENGTH);
+
+	if(*esp < STACK_LIMIT) 
+		{
+			palloc_free_page (kpage);
+			return false;
+		}
 
 	//Push "return address"
 	*esp -= WORD_LENGTH;
