@@ -552,7 +552,7 @@ setup_stack (void **esp)
 					return false;
 				}
 			
-			if(((*esp) - (strlen(curr_str) + 1)) < PHYS_BASE - PGSIZE)
+			if(((*esp) - (strlen(curr_str) + 1)) < STACK_LIMIT)
 			{
 				palloc_free_page (kpage);
 				return false;
