@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <threads/synch.h>
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -25,10 +26,12 @@ typedef int tid_t;
 #define PRI_MAX 63                      /* Highest priority. */
 
 /*Added global constants*/
+//Ruben started driving
 #define MAX_ARGS  128       /*Maximum number of cmd line args*/
 #define WORD_LENGTH 4       /*Length of a word in Pintos*/
 #define STACK_LIMIT  PHYS_BASE - PGSIZE /* How much stack can grow to */
 #define MAX_FILES 128				/* Maximum number of files a thread can have */
+//Ruben stopped driving
 
 /* A kernel thread or user process.
 
@@ -110,18 +113,22 @@ struct thread
 		unsigned magic;                     /* Detects stack overflow. */
 
 		/* Added Variables */
+		//Siva and Ruben started driving
 		bool is_user_process;               /* True if a user process*/
 		bool has_loaded_process;            /* Has child loaded file */
 		bool has_waited;                    /* Has child been waited on before */
 		bool is_alive;                      /* Has the child exited or not */
 		int child_exit_status;              /* Exit status of A child */
-		struct semaphore *load_sema;        /* Waits the parent for child load */
-		struct semaphore *wait_sema;        /* Waits the parent for child exit */
+		struct semaphore load_sema;        /* Waits the parent for child load */
+		struct semaphore wait_sema;        /* Waits the parent for child exit */
 		struct thread *parent;              /* Pointer to the child's parent */
-		// struct list_elem child_elem;        /**/
-		// struct list child_list;             /**/
+		struct list_elem child_elem;        /**/
+		struct list child_list;             /**/
 		struct file *file_list[MAX_FILES];  /* List of files that a thread has */
+		struct thread *tid_arr[MAX_FILES];
+		int exit_arr[MAX_FILES];
 		struct file *exec_file;							/* Exec file that thread is running */
+		//Siva and Ruben stopped driving
 	};
 
 /* If false (default), use round-robin scheduler.
@@ -162,5 +169,6 @@ int thread_get_load_avg (void);
 
 /*Added method*/
 struct thread * tid_to_thread(tid_t tid);
+struct thread * get_a_thread(tid_t tid);
 
 #endif /* threads/thread.h */

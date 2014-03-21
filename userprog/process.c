@@ -8,6 +8,7 @@
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
+#include "userprog/syscall.h"
 #include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
@@ -30,6 +31,11 @@ int argc;										/*Count of how many cmd lne args*/
 	 FILENAME.  The new thread may be scheduled (and may even exit)
 	 before process_execute() returns.  Returns the new process's
 	 thread id, or TID_ERROR if the thread cannot be created. */
+
+/* Added code comments: Simply break up the given cmd line into
+   individual strings and then store them in the global argv array.
+   Adjust argc as necessary. Glb var driving and local var driving
+   done by Ruben. */
 tid_t
 process_execute (const char *file_name) 
 {
@@ -39,6 +45,7 @@ process_execute (const char *file_name)
 	char *token, *save_ptr;
 	int index = 0; 
 	argc = 0;
+	struct thread *cur;
 
 	/* Make a copy of FILE_NAME.
 		 Otherwise there's a race between the caller and load(). */
@@ -58,16 +65,24 @@ process_execute (const char *file_name)
 
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (argv[0], PRI_DEFAULT, start_process, fn_copy);
-	printf("\n\n1: %s\n\n", thread_current()->name);
-	sema_down(&thread_current()->load_sema);
 
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
+
+	cur = tid_to_thread(tid);
+	if(!cur)
+		return -1;
+	sema_down(&cur->load_sema);
+
+	if(!thread_current()->has_loaded_process)
+		tid = -1;
+
 	return tid;
 }
 
 /* A thread function that loads a user process and starts it
 	 running. */
+/* Added code comments: */
 static void
 start_process (void *file_name_)
 {
@@ -85,14 +100,13 @@ start_process (void *file_name_)
 	success = load (file_name, &if_.eip, &if_.esp);
 	//ADDED Code
 	child->is_user_process = true;
-	child->has_loaded_process = success;
-	printf("\n\n2: %s\n\n", child->parent->name);
-	sema_up(&child->parent->load_sema);
+	child->parent->has_loaded_process = success;
+	sema_up(&child->load_sema);
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
-	if (!success) 
-		thread_exit ();
+	if (!success)
+		thread_exit();
 
 	/* Start the user process by simulating a return from an
 		 interrupt, implemented by intr_exit (in
@@ -113,21 +127,33 @@ start_process (void *file_name_)
 
 	 This function will be implemented in problem 2-2.  For now, it
 	 does nothing. */
+
+/*Added code comments: Process wait implemented in terms of the 
+	comment above. We obtain the thread pertaining to the given
+	tid and we make sure the tid referenced thread is a child of
+	the running thread, otherwise returning -1. -1 is also returned
+	if the tid referenced thread is NULL, is not alive or has already
+	been waited on before. If no errors are to be returned, then the
+	parent waits on the child by calling sema_down and retrieves the
+	status that is returned by the child.*/
+	
+//Ruben and Siva started driving
 int
 process_wait (tid_t child_tid) 
 {
 	struct thread *child, *cur;
 
-	child = tid_to_thread(child_tid);
 	cur = thread_current();
+	child = tid_to_thread(child_tid);
 	if(child == NULL)
 		return -1;
 
-	if(child->parent->name != cur->name)
+	if(strcmp(child->parent->name, cur->name) != 0)
 		return -1;
 
 	if(child->has_waited)
 		return -1;
+
 	child->has_waited = true;
 	if(child->is_alive)
 		{
@@ -137,6 +163,7 @@ process_wait (tid_t child_tid)
 	else
 		return -1;
 }
+//Ruben and Siva stopped driving
 
 /* Free the current process's resources. */
 void
@@ -276,9 +303,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
 			goto done; 
 		}
 
-	//Added code
+	//Deny the write permission to the executable file and let
+	//the current thread remember this file
+	//Siva started driving
 	file_deny_write(file);
 	t->exec_file = file;
+	//Siva stopped driving
 
 	/* Read and verify executable header. */
 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -476,6 +506,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 /* Create a minimal stack by mapping a zeroed page at the top of
 	 user virtual memory. */
+/*Added code comments: Added code simply pertaining to the 
+	guidelines of setting up the stack. Our code does not keep
+	a copy of the esp variable though, we directly use it. ECC code
+	added after each stack push to make sure that contents are within
+	the page size of the stack.*/
+//Siva started driving
 static bool
 setup_stack (void **esp) 
 {
@@ -496,7 +532,6 @@ setup_stack (void **esp)
 				palloc_free_page (kpage);
 		}
 
-	//Siva started driving
 	*esp = PHYS_BASE;
 	//Push the cmd line strings onto the stack
 	for(i = argc - 1; i >= 0; i--)

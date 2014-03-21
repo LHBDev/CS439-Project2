@@ -26,14 +26,23 @@ struct lock file_lock;
 void
 syscall_init (void) 
 {
+	//Above (header file also) added methods/declarations are driven by both
+	//Ruben started driving
 	lock_init(&file_lock);
 	intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
+/*Syscall Handler- We first check the validity of the esp location.
+  Then, we obtain the call num that is esp is pointing to. We
+  structured it such that we obtain arguments only as we need them in
+  accordance with the appropriate system call. As we obtain the arguments,
+  we check if their position validity as well.*/
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
 	int call_num, first_arg, second_arg, third_arg;
+
+	// printf("herer\n");
 
 	//Checks the validity of the esp location
 	if(!pointer_valid(f->esp))
@@ -46,6 +55,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	if(call_num == SYS_HALT)
 		halt();
 
+	//Get 1st argument and check it's validity
 	first_arg = * (int *) (f->esp + WORD_LENGTH);
 	if(!pointer_valid(f->esp + WORD_LENGTH))
 		exit(-1);
@@ -84,6 +94,10 @@ syscall_handler (struct intr_frame *f UNUSED)
 			close(first_arg);
 		}
 
+	//Ruben stopped driving
+	//Siva started driving
+
+	//Get 2nd argument and check it's validity
 	second_arg = * (int *) (f->esp + (2 * WORD_LENGTH));
 	if(!pointer_valid(f->esp + 2* WORD_LENGTH))
 		exit(-1);
@@ -98,6 +112,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 			seek(first_arg, (unsigned) second_arg);
 		}
 
+	//Get 3rd argument and check it's validity
 	third_arg = * (int *) (f->esp + (3 * WORD_LENGTH));
 	if(!pointer_valid(f->esp + 3 * WORD_LENGTH))
 		exit(-1);
@@ -112,6 +127,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 			f->eax = write(first_arg, (const void *) second_arg, (unsigned) third_arg);
 		}
 }
+//Siva stopped driving
 
 /*Halt system call- Simply calls the pow off method*/
 //Ruben started driving
@@ -126,6 +142,8 @@ halt (void)
   writing to it and saves the status directly to the child's 
   parent. Wakes up the waiting parent and prints the proper 
   exit message, if it's a user process.*/
+
+//Siva started driving
 void
 exit (int status)
 {
@@ -133,10 +151,11 @@ exit (int status)
 
 	lock_acquire(&file_lock);
 	file_close(cur->exec_file);
-	lock_release(&file_lock);
+	lock_release(&file_lock);	
 
 	cur->parent->child_exit_status = status;
 	cur->is_alive = false;
+	// printf("status %d\n", status);
 
 	sema_up(&cur->parent->wait_sema);
 	if(cur->is_user_process)
@@ -145,36 +164,39 @@ exit (int status)
 	thread_exit();
 }
 
-/*Exec system call*/
+/*Exec system call - NOT YET IMPLEMENTED*/
 pid_t
 exec (const char *cmd_line)
 {
 	struct thread *cur = thread_current();;
-	struct thread *child;
 	pid_t new_pid;
 
 	if(!pointer_valid((void *) cmd_line))
 		exit(-1);
 
+	lock_acquire(&file_lock);
 	new_pid = process_execute(cmd_line);
-	child = tid_to_thread(new_pid);
+	lock_release(&file_lock);
 
-	// sema_down(&cur->load_sema);
-	// child = list_entry(list_back(&cur->child_list), struct thread, child_elem);
-
-	if(!child->has_loaded_process)
-		new_pid = -1;
 	return new_pid;
 }
 
-/*Wait system call*/
+//Siva stopped driving
+//Ruben started driving
+
+/*Wait system call - Implemented in terms of process_wait().
+  Therefore, simply returns what process_wait returns.*/
 int
 wait (pid_t pid)
 {
 	return process_wait(pid);
 }
 
-/*Create system call*/
+/*Create system call - First checks validity of the char *
+  file and thread is killed if necessary. Calls the provided
+  filesys_create() method in filesys dir and this is done
+  within a lock to ensure synchronization. Returns the result
+  returned by filesys_create().*/
 bool
 create (const char *file, unsigned initial_size)
 {
@@ -189,7 +211,10 @@ create (const char *file, unsigned initial_size)
 	return success;
 }
 
-/*Remove system call*/
+/*Remove system call - First checks validity of the char *
+  file. Calls the provided filesys_remove() method and this
+  is done within a lock to ensure synchronization. 
+  Returns the result returned by filesys_remove().*/
 bool
 remove (const char *file)
 {
@@ -204,7 +229,16 @@ remove (const char *file)
 	return success;
 }
 
-/*Open system call*/
+//Ruben stopped driving
+//Siva started driving
+
+/*Open system call - First checks validity of the char *
+  file. Then calls the provided filesys_open() method 
+  and this is done within a lock to ensure synchronization.
+ 	If the file isn't NULL, the open file is stored in the 
+ 	thread's file_list and the fd is the index of the 
+ 	file_list (an array) that is returned. Otherwise, -1
+ 	is returned.*/
 int
 open (const char *file)
 {
@@ -233,7 +267,10 @@ open (const char *file)
 	return fd;
 }
 
-/*Filesize system call*/
+/*Filesize system call - First checks validity of fd which is
+	converted into a file by the helper method (done within a lock).
+  Then returns the result of provided file_length() method 
+  if the file is proper, else the ret val is 0.*/
 int
 filesize (int fd)
 {
@@ -252,7 +289,11 @@ filesize (int fd)
 	return (int) file_length(fd_file);
 }
 
-/*Read system call*/
+/*Read system call - First checks validity of the buffer and fd. 
+  If fd == STDIN_FILENO, we read a char at a time from stdin and store
+  it in the buffer, returning size. Otherwise, we convert fd to its
+  referenced file and use the provided file_read method to read from
+  it. Both of the above operations are performed within a lock.*/
 int
 read (int fd, void *buffer, unsigned size)
 {
@@ -285,7 +326,14 @@ read (int fd, void *buffer, unsigned size)
 	return bytes_read;
 }
 
-/*Write system call*/
+//Siva stopped driving
+//Ruben started driving
+
+/*Write system call - First checks validity of the buffer and fd.
+	If fd == STDOUT_FILENO, use the putbuf method to write the entire
+	buffer and return size. Otherwise, convert fd to its referenced
+	file and call the provided file_write method to write to the file.
+	Both again are done within a lock to ensure synchronization.*/
 int
 write (int fd, const void *buffer, unsigned size)
 {
@@ -296,7 +344,6 @@ write (int fd, const void *buffer, unsigned size)
 		exit(-1);
 
 	lock_acquire(&file_lock);
-	//Write to stdout
 	if(fd == STDOUT_FILENO)
 		{
 			putbuf(buffer, size);
@@ -312,7 +359,9 @@ write (int fd, const void *buffer, unsigned size)
 	return bytes_written;
 }
 
-/*Seek system call*/
+/*Seek system call - First checks the validity of fd. After 
+	converting it to its referenced file, call the provided
+	method file_seek within a lock.*/
 void
 seek (int fd, unsigned position)
 {
@@ -328,7 +377,12 @@ seek (int fd, unsigned position)
 	lock_release(&file_lock);
 }
 
-/*Tell system call*/
+//Ruben stopped driving
+//Siva started driving
+
+/*Tell system call - First checks the validity of fd. After 
+	converting it to its referenced file, call the provided
+	method file_tell within a lock.*/
 unsigned
 tell (int fd)
 {
@@ -347,7 +401,10 @@ tell (int fd)
 	return result_pos;
 }
 
-/*Close system call*/
+/*Close system call - First checks the validity of fd. After 
+	converting it to its referenced file, call the provided
+	method file_close within a lock. Then NULL out the proper
+	entry from the thread's file's list.*/
 void
 close (int fd)
 {
@@ -364,11 +421,12 @@ close (int fd)
 
 	cur->file_list[fd] = NULL;
 }
+//Siva stopped driving
 
 /*Start of helper methods*/
 
 /*Checks the validity of a passed in user address. Can't 
-	trust those foos. */
+	trust those foos.*/
 //Ruben started driving
 bool
 pointer_valid (void * given_addr)
@@ -384,7 +442,7 @@ pointer_valid (void * given_addr)
 //Ruben stopped driving
 
 /*Checks the validity of a passed in nm. Still can't trust
-	those foos. */
+	those foos.*/
 //Siva started driving
 bool
 fd_valid (int fd)
@@ -396,7 +454,7 @@ fd_valid (int fd)
 
 /*Returns a file pointer (struct file *) given a fd number.
 	Basically looks through the thread's file list and obtains
-	the entry associate with fd. If fd is not present, returns NULL. */
+	the entry associate with fd. If fd is not present, returns NULL.*/
 struct file *
 fd_to_file (int fd)
 {
