@@ -76,7 +76,7 @@ process_execute (const char *file_name)
 
 	if(!thread_current()->has_loaded_process)
 		tid = -1;
-
+	// printf("PPID: %d\n", tid);
 	return tid;
 }
 
@@ -97,7 +97,9 @@ start_process (void *file_name_)
 	if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
 	if_.cs = SEL_UCSEG;
 	if_.eflags = FLAG_IF | FLAG_MBS;
+	// printf("SOME: %s %s\n",child->name, file_name);
 	success = load (file_name, &if_.eip, &if_.esp);
+	// printf("%d\n", success);
 	//ADDED Code
 	child->is_user_process = true;
 	child->parent->has_loaded_process = success;
@@ -135,7 +137,9 @@ start_process (void *file_name_)
 	if the tid referenced thread is NULL, is not alive or has already
 	been waited on before. If no errors are to be returned, then the
 	parent waits on the child by calling sema_down and retrieves the
-	status that is returned by the child.*/
+	status that is returned by the child.
+	sema_up(exit_sema) is called to ensure that the parent keeps track
+	of the appropriate child_exit_status in the correct order.*/
 	
 //Ruben and Siva started driving
 int
@@ -145,6 +149,9 @@ process_wait (tid_t child_tid)
 
 	cur = thread_current();
 	child = tid_to_thread(child_tid);
+
+	sema_up(&child->exit_sema);
+	
 	if(child == NULL)
 		return -1;
 
@@ -302,7 +309,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 			printf ("load: %s: open failed\n", file_name);
 			goto done; 
 		}
-
 	//Deny the write permission to the executable file and let
 	//the current thread remember this file
 	//Siva started driving
@@ -531,19 +537,30 @@ setup_stack (void **esp)
 			else
 				palloc_free_page (kpage);
 		}
-
+		// printf("Here\n");
 	*esp = PHYS_BASE;
+
 	//Push the cmd line strings onto the stack
 	for(i = argc - 1; i >= 0; i--)
 		{
 			curr_str = argv[i];
 			*esp -= strlen(curr_str) + 1;
+			
 			if((*esp) < STACK_LIMIT)
-				{
+				{	
 					palloc_free_page (kpage);
 					return false;
 				}
+			
+			if(((*esp) - (strlen(curr_str) + 1)) < STACK_LIMIT)
+			{
+				palloc_free_page (kpage);
+				return false;
+			}
+			// printf("ESP: 0x%08X LEN: %d STACK: %p\n", *esp, strlen(curr_str)+1, STACK_LIMIT);
+			// printf("ESP-: 0x%08X STACK: %p\n", *esp - (strlen(curr_str) +1), STACK_LIMIT);
 			strlcpy((char *) (*esp), curr_str, strlen(curr_str) + 1);
+			// memcpy(*esp, curr_str, strlen(curr_str)+1);
 		}
 
 	//Push 0's to align stack to a word multiple

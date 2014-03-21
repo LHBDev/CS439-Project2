@@ -152,14 +152,17 @@ exit (int status)
 	lock_acquire(&file_lock);
 	file_close(cur->exec_file);
 	lock_release(&file_lock);	
-
+	
+	sema_down(&cur->exit_sema);
+	
 	cur->parent->child_exit_status = status;
 	cur->is_alive = false;
 	// printf("status %d\n", status);
-
 	sema_up(&cur->parent->wait_sema);
 	if(cur->is_user_process)
 		printf("%s: exit(%d)\n", cur->name, status);
+	
+
 
 	thread_exit();
 }
@@ -177,7 +180,7 @@ exec (const char *cmd_line)
 	lock_acquire(&file_lock);
 	new_pid = process_execute(cmd_line);
 	lock_release(&file_lock);
-
+	// printf("PID: %d\n", new_pid);
 	return new_pid;
 }
 

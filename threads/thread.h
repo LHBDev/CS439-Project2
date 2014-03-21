@@ -121,6 +121,7 @@ struct thread
 		int child_exit_status;              /* Exit status of A child */
 		struct semaphore load_sema;        /* Waits the parent for child load */
 		struct semaphore wait_sema;        /* Waits the parent for child exit */
+		struct semaphore exit_sema;			/* Child waits for parent to call wait */
 		struct thread *parent;              /* Pointer to the child's parent */
 		struct list_elem child_elem;        /**/
 		struct list child_list;             /**/
