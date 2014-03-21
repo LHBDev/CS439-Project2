@@ -552,15 +552,12 @@ setup_stack (void **esp)
 					return false;
 				}
 			
-			if(((*esp) - (strlen(curr_str) + 1)) < STACK_LIMIT)
+			if(((*esp) - (strlen(curr_str) + 1)) < PHYS_BASE - PGSIZE)
 			{
 				palloc_free_page (kpage);
 				return false;
 			}
-			// printf("ESP: 0x%08X LEN: %d STACK: %p\n", *esp, strlen(curr_str)+1, STACK_LIMIT);
-			// printf("ESP-: 0x%08X STACK: %p\n", *esp - (strlen(curr_str) +1), STACK_LIMIT);
 			strlcpy((char *) (*esp), curr_str, strlen(curr_str) + 1);
-			// memcpy(*esp, curr_str, strlen(curr_str)+1);
 		}
 
 	//Push 0's to align stack to a word multiple
