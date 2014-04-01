@@ -7,6 +7,7 @@ struct frame
 	struct hash_elem hash_elem;
 	struct thread *owner;
 	uint32_t *pte;
+	uint32_t frame_addr;
 };
 
 /* Hash Functions for Frame Tables */
@@ -16,4 +17,6 @@ bool frame_less(const struct hash_elem *, const struct hash_elem *,
 
 /* Frame Table functions */
 void frame_init(void);
-void frame_lookup (uint32_t *pte_lookup);
+void add_frame (uint32_t, uint32_t);
+struct frame * lookup_frame (uint32_t);
+void evict_frame (void);

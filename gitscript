@@ -1,4 +1,4 @@
 #!/bin/sh
 git add *
-git commit -m "Syn read, write and multioom not working"
-git push -u origin master
+git commit -m "Skeleton functions for frame.c added"
+git push -u origin frame_table

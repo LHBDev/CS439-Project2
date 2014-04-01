@@ -42,8 +42,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 {
 	int call_num, first_arg, second_arg, third_arg;
 
-	// printf("herer\n");
-
 	//Checks the validity of the esp location
 	if(!pointer_valid(f->esp))
 		exit(-1);
@@ -140,7 +138,10 @@ halt (void)
 
 /*Exit system call - Closes the thread's exec file to reenable
   writing to it and saves the status directly to the child's 
-  parent. Wakes up the waiting parent and prints the proper 
+  parent. We call sema down on exit sema to make the exiting
+  child wait for the parent to start waiting. This prevents
+  premature exiting of the children, a possible race condition.
+  Then, wakes up the waiting parent and prints the proper 
   exit message, if it's a user process.*/
 
 //Siva started driving
@@ -153,9 +154,10 @@ exit (int status)
 	file_close(cur->exec_file);
 	lock_release(&file_lock);	
 
+	sema_down(&cur->exit_sema);
+
 	cur->parent->child_exit_status = status;
 	cur->is_alive = false;
-	// printf("status %d\n", status);
 
 	sema_up(&cur->parent->wait_sema);
 	if(cur->is_user_process)
@@ -164,11 +166,13 @@ exit (int status)
 	thread_exit();
 }
 
-/*Exec system call - NOT YET IMPLEMENTED*/
+/*Exec system call - First checks the validity of the passed
+  in argument and then calls the process execute method. This
+  is done under a lock to prevent perturbing race conditions.
+  Returns the value returned by process_execute(). */
 pid_t
 exec (const char *cmd_line)
 {
-	struct thread *cur = thread_current();;
 	pid_t new_pid;
 
 	if(!pointer_valid((void *) cmd_line))

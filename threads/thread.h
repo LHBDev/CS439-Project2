@@ -119,15 +119,12 @@ struct thread
 		bool has_waited;                    /* Has child been waited on before */
 		bool is_alive;                      /* Has the child exited or not */
 		int child_exit_status;              /* Exit status of A child */
-		struct semaphore load_sema;        /* Waits the parent for child load */
-		struct semaphore wait_sema;        /* Waits the parent for child exit */
+		struct semaphore load_sema;        	/* Waits the parent for child load */
+		struct semaphore wait_sema;        	/* Waits the parent for child exit */
+		struct semaphore exit_sema;			/* Waits child for parent to reap */
 		struct thread *parent;              /* Pointer to the child's parent */
-		struct list_elem child_elem;        /**/
-		struct list child_list;             /**/
 		struct file *file_list[MAX_FILES];  /* List of files that a thread has */
-		struct thread *tid_arr[MAX_FILES];
-		int exit_arr[MAX_FILES];
-		struct file *exec_file;							/* Exec file that thread is running */
+		struct file *exec_file;				/* Exec file that thread is running */
 		//Siva and Ruben stopped driving
 	};
 

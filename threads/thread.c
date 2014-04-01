@@ -172,7 +172,6 @@ thread_create (const char *name, int priority,
 	struct switch_threads_frame *sf;
 	tid_t tid;
 	enum intr_level old_level;
-	int i;
 
 	ASSERT (function != NULL);
 
@@ -185,18 +184,9 @@ thread_create (const char *name, int priority,
 	init_thread (t, name, priority);
 	tid = t->tid = allocate_tid ();
 
-	//Point created thread to the parent
+	//Point the created thread to its parent
 	//Siva started driving
 	t->parent = thread_current();
-	for(i = 0; i < MAX_FILES; i++)
-		if(!thread_current()->tid_arr[i])
-		{
-			thread_current()->tid_arr[i] = t;
-			break;
-		}
-
-	// if(strcmp(t->name, "idle") != 0)
-	// list_push_back(&t->parent->child_list, &t->child_elem);
 	//Siva stopped driving
 
 	/* Prepare thread for first run by initializing its stack.
@@ -489,9 +479,9 @@ init_thread (struct thread *t, const char *name, int priority)
 
 	//Initialize the variables of the created thread
 	//Siva started driving
-	list_init(&t->child_list);
 	sema_init(&t->load_sema, 0);
 	sema_init(&t->wait_sema, 0);
+	sema_init(&t->exit_sema, 0);
 	t->has_waited = false;
 	t->is_alive = true;
 	//Siva stopped driving
@@ -588,32 +578,11 @@ tid_to_thread(tid_t tid)
 			if(child->tid == tid)
 				break;
 		}
-	// for (e = list_begin (&cur->child_list); e != list_end (&cur->child_list);
-	// 		 e = list_next (e))
-	// 	{
-	// 		child = list_entry (e, struct thread, child_elem);
-	// 		printf("%s\n", child->name);
 
-	// 		if(child->tid == tid)
-	// 			break;
-	// 	}
 	return child;
 }
 //Ruben stopped driving
-// struct thread *
-// get_a_thread (tid_t tid)
-// {
-// 	struct thread *cur = thread_current();
-// 	struct thread *child = NULL;
-// 	struct list_elem *e;
-// 	int i;
 
-// 	for(i = 0; i < MAX_FILES; i++) {
-// 		if(cur->tid_arr[i]->tid == tid)
-// 			return cur->tid_arr[i];
-// 	}
-// 	return NULL;
-// }
 /* End of added method */
 
 /* Schedules a new process.  At entry, interrupts must be off and
