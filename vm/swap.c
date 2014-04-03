@@ -10,3 +10,15 @@ swap_init (void)
 	//change size of bitmap later
 	swap_table = bitmap_create(256);
 }
+
+void
+swap_out (void)
+{
+
+}
+
+void
+swap_in (void)
+{
+	
+}
