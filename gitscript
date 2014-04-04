@@ -1,4 +1,4 @@
 #!/bin/sh
 git add *
-git commit -m "Skeleton functions for frame.c added"
+git commit -m "A good deal of frame.c done"
 git push -u origin frame_table

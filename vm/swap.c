@@ -20,5 +20,5 @@ swap_out (void)
 void
 swap_in (void)
 {
-	
+
 }

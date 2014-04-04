@@ -6,19 +6,19 @@
 #include "threads/thread.h"
 #include "threads/malloc.h"
 
-//Header prototypes
+//Global Vars
 struct hash frame_table;
 struct lock ft_lock;
 
-/* Returns a hash value for page p. */
+/* Returns a hash value for frame p. */
 unsigned
-frame_hash (const struct hash_elem *p_, void *aux UNUSED)
+frame_hash (const struct hash_elem *f_, void *aux UNUSED)
 {
-  const struct frame *p = hash_entry (p_, struct frame, hash_elem);
-  return hash_bytes (&p->pte, sizeof p->pte);
+  const struct frame *f = hash_entry (f_, struct frame, hash_elem);
+  return hash_bytes (&f->pte, sizeof f->pte);
 }
 
-/* Returns true if page a precedes page b. */
+/* Returns true if frame a precedes frame b. */
 bool
 frame_less (const struct hash_elem *a_, const struct hash_elem *b_,
            void *aux UNUSED)
@@ -32,42 +32,68 @@ frame_less (const struct hash_elem *a_, const struct hash_elem *b_,
 void
 frame_init (void)
 {
-  void *page;
 	hash_init(&frame_table, frame_hash, frame_less, NULL);
   lock_init(&ft_lock);
-
-  //Get every single page
-  // while((page = palloc_get_page(PAL_USER)))
-  //   {
-  //     struct frame *frame;
-  //     frame = (struct frame *)malloc(sizeof(struct frame));
-  //     frame->owner = thread_current();
-  //     frame->pte = page;
-  //     hash_insert(&frame_table, &frame->hash_elem);
-  //   }
 }
 
 //need to allocate all the user pages, also need to free them sometime
 //free_frames and alloc_frames?
 
-void
-add_frame (uint32_t frame_address, uint32_t *pt_entry)
+//combine allocing of frames and getting a frame
+void *
+obtain_frame (uint8_t *pt_entry)
 {
   struct frame *f;
+  void *palloc_frame;
 
-  f = malloc(sizeof(struct frame));
-  f->owner = thread_current();
-  f->frame_addr = frame_address;
-  f->pte = pt_entry;
-  //might need to put info about page table entry
-  //this insert might not insert if there is a collision
-  //should this insert be synchronized??
-  hash_insert(&frame_table, &f->hash_elem);
+  palloc_frame = palloc_get_page(PAL_USER);
+
+  //Returned frame is not null, put the user page in the free frame
+  if(palloc_frame)
+    {
+      f = malloc(sizeof(struct frame));
+      f->owner = thread_current();
+      f->frame = palloc_frame;
+      f->pte = pt_entry;
+      //might need to put info about page table entry
+      //this insert might not insert if there is a collision
+      //should this insert be synchronized??
+      // lock_acquire(&ft_lock);
+      hash_insert(&frame_table, &f->hash_elem);
+      // lock_release(&ft_lock);
+    }
+  //no more frames, need to evict and swap frames
+  else
+    {
+      PANIC ("Nope. Don't even.");
+    }
+
+    return palloc_frame;
 }
 
-//lookup a frame
+//TODO: synch needed
+void
+free_frame (uint8_t *pt_entry)
+{
+  struct frame lookup;
+  struct frame *target;
+  struct hash_elem *e;
+
+  lookup.pte = pt_entry;
+  e = hash_find(&frame_table, &lookup.hash_elem);
+  if(e)
+    {
+      target = hash_entry(e, struct frame, hash_elem);
+      hash_delete(&frame_table, &target->hash_elem);
+      free(target);
+      palloc_free_page(pt_entry);
+    }
+}
+
+//lookup a frame, just find something empty (null pointer/bits)
+//do we need synch here?
 struct frame *
-lookup_frame (uint32_t frame_addr)
+lookup_frame (void *frame)
 {
   struct hash_iterator i;
   struct frame *f;
@@ -76,7 +102,7 @@ lookup_frame (uint32_t frame_addr)
   while (hash_next (&i))
     {
       f = hash_entry (hash_cur (&i), struct frame, hash_elem);
-      if(f->frame_addr == frame_addr)
+      if(f->frame == frame)
         return f;
     }
 
@@ -88,6 +114,7 @@ void
 evict_frame (void)
 {
   //use lookup_frame here?
+
 }
 //any more???
 //clock algorithm that jumps over pinned frames
