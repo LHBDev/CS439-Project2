@@ -20,6 +20,8 @@
 #include "threads/vaddr.h"
 #include "threads/synch.h"
 #include "vm/frame.h"
+#include "vm/page.h"
+#include "vm/swap.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -484,6 +486,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	ASSERT (pg_ofs (upage) == 0);
 	ASSERT (ofs % PGSIZE == 0);
 
+	struct page *upage_entry;
+
 	file_seek (file, ofs);
 	while (read_bytes > 0 || zero_bytes > 0) 
 		{
@@ -493,27 +497,39 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 			size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 			size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
+			//!!!Need to lazy load these pages(load nothing in this method)!!!
+			//fill in sup table entry
 			/* Get a page of memory. */
-			uint8_t *kpage = obtain_frame(upage);
-			if (kpage == NULL)
-				return false;
+			if(thread_current()->spt_initialized) {
+				sup_table_init(&thread_current()->sup_table);
+				thread_current()->spt_initialized = true;
+			}
 
-			/* Load this page. */
-			if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-				{
-					free_frame(kpage);
-					//palloc_free_page (kpage);
-					return false; 
-				}
-			memset (kpage + page_read_bytes, 0, page_zero_bytes);
+			uint8_t *kpage = palloc_get_page (PAL_USER);
 
-			/* Add the page to the process's address space. */
-			if (!install_page (upage, kpage, writable)) 
-				{
-					free_frame (kpage);
-					// palloc_free_page (kpage);
-					return false; 
-				}
+			if(page_zero_bytes == PGSIZE) {
+				upage_entry = page_lookup(upage);
+				upage_entry->type = ALL_ZERO;
+			}
+
+
+			// if (kpage == NULL)
+			// 	return false;
+
+			// /* Load this page. */
+			// if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+			// 	{
+			// 		palloc_free_page (kpage);
+			// 		return false; 
+			// 	}
+			// memset (kpage + page_read_bytes, 0, page_zero_bytes);
+
+			// /* Add the page to the process's address space. */
+			// if (!install_page (upage, kpage, writable)) 
+			// 	{
+			// 		palloc_free_page (kpage);
+			// 		return false; 
+			// 	}
 
 			/* Advance. */
 			read_bytes -= page_read_bytes;
@@ -541,6 +557,7 @@ setup_stack (void **esp)
 	uint8_t word_align = 0;
 	int i, temp_ptr;
 	
+	// use frame allocator for stack page
 	kpage = palloc_get_page (PAL_USER | PAL_ZERO);
 	if (kpage != NULL) 
 		{
@@ -557,11 +574,6 @@ setup_stack (void **esp)
 		{
 			curr_str = argv[i];
 			*esp -= strlen(curr_str) + 1;
-			if((*esp) < STACK_LIMIT)
-				{
-					palloc_free_page (kpage);
-					return false;
-				}
 			strlcpy((char *) (*esp), curr_str, strlen(curr_str) + 1);
 		}
 
@@ -570,21 +582,9 @@ setup_stack (void **esp)
 	*esp -= word_align;
 	memcpy(*esp, "\0", word_align);
 
-	if(*esp < STACK_LIMIT) 
-		{
-			palloc_free_page (kpage);
-			return false;
-		}
-
 	//Push the null sentinel
 	*esp -= WORD_LENGTH;
 	memcpy(*esp, "\0\0\0\0", WORD_LENGTH);
-
-	if(*esp < STACK_LIMIT) 
-		{
-			palloc_free_page (kpage);
-			return false;
-		}
 
 	//Siva stopped driving
 	//Ruben started driving
@@ -596,11 +596,6 @@ setup_stack (void **esp)
 			curr_str = argv[i];
 			temp_ptr -= strlen(curr_str) + 1;
 			*esp -= WORD_LENGTH;
-			if(*esp < STACK_LIMIT) 
-				{
-					palloc_free_page (kpage);
-					return false;
-				}
 			memcpy(*esp, &temp_ptr, WORD_LENGTH);
 		}
 
@@ -609,31 +604,13 @@ setup_stack (void **esp)
 	*esp -= WORD_LENGTH;
 	memcpy(*esp, &temp_ptr, WORD_LENGTH);
 
-	if(*esp < STACK_LIMIT) 
-		{
-			palloc_free_page (kpage);
-			return false;
-		}
-
 	//Push argc
 	*esp -= WORD_LENGTH;
 	memcpy(*esp, &argc, WORD_LENGTH);
 
-	if(*esp < STACK_LIMIT) 
-		{
-			palloc_free_page (kpage);
-			return false;
-		}
-
 	//Push "return address"
 	*esp -= WORD_LENGTH;
 	memcpy(*esp, "\0\0\0\0", WORD_LENGTH);
-
-	if(*esp < STACK_LIMIT)
-		{
-			palloc_free_page (kpage);
-			return false;
-		}
 
 	//Ruben stopped driving
 	return success;

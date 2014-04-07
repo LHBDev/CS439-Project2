@@ -113,8 +113,20 @@ lookup_frame (void *frame)
 void
 evict_frame (void)
 {
-  //use lookup_frame here?
-
+  //implement clock algo for choosing frame//
+  //iterate through hash table
+  //check reference bit-clear it
+  //check if page in frame is dirty - pagedir.c pagedir_is_dirty()?
+  struct hash_iterator i;
+  struct frame *f;
+  
+  hash_first(&i, &frame_table);
+  while(hash_next (&i))
+  {
+    f = hash_entry(hash_cur(&i), struct frame, hash_elem);
+    //check/modify reference bit
+    //free the page
+  }
 }
 //any more???
 //clock algorithm that jumps over pinned frames

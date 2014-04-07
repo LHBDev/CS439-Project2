@@ -2,8 +2,11 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include "userprog/gdt.h"
+#include "userprog/syscall.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "vm/page.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -119,6 +122,7 @@ kill (struct intr_frame *f)
    can find more information about both of these in the
    description of "Interrupt 14--Page Fault Exception (#PF)" in
    [IA32-v3a] section 5.15 "Exception and Interrupt Reference". */
+
 static void
 page_fault (struct intr_frame *f) 
 {
@@ -126,6 +130,10 @@ page_fault (struct intr_frame *f)
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
+
+  //Added variables
+  void *fault_vpage; /* Virtual page of the fault address. */
+  struct page *spt_entry;
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
@@ -149,21 +157,32 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   //Ruben started driving
-  if(not_present || user)
+  if(!not_present || !user)
     exit(-1);
   //Ruben stopped driving
 
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
+/*
+TODO:
+handle fault by looking page up in supp. table
+use page table entry to locate data for page- in file system or swap
+obtain a frame for page-might already be in frame if sharing
+fetch data into frame = reading from file or swap, or zeroing it
+if sharing and page in frame done
+point page table entry for faulting virtual address to physical page-look at pagedir.c
+*/
 
-  printf("There is no crying in Pintos!\n");
-
-  kill (f);
+  //Page fault handler
+  fault_vpage = pg_round_down(fault_addr);
+  spt_entry = page_lookup(fault_vpage);
+  //spt does not contain this page, illegal access or stack growth?
+  if(!spt_entry) {
+    if(fault_addr >= f->esp - 32 && user && write) {
+      //if stack has overflowed stack limit
+      if(fault_vpage - PHYS_BASE >= STACK_LIMIT)
+        exit(-1);
+    }
+  } else {
+    //either load from file or load from swap
+  }
+  //stack growth or loading page, either from file or swap
 }
-

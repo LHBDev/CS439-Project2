@@ -3,6 +3,7 @@
 
 #include <debug.h>
 #include <list.h>
+#include <hash.h>
 #include <stdint.h>
 #include <threads/synch.h>
 
@@ -27,10 +28,10 @@ typedef int tid_t;
 
 /*Added global constants*/
 //Ruben started driving
-#define MAX_ARGS  128       /*Maximum number of cmd line args*/
-#define WORD_LENGTH 4       /*Length of a word in Pintos*/
-#define STACK_LIMIT  PHYS_BASE - PGSIZE /* How much stack can grow to */
-#define MAX_FILES 128				/* Maximum number of files a thread can have */
+#define MAX_ARGS  128           /* Maximum number of cmd line args */
+#define WORD_LENGTH 4           /* Length of a word in Pintos */
+#define STACK_LIMIT 1 << 20	    /* How much stack can grow to */
+#define MAX_FILES 128			/* Maximum number of files a thread can have */
 //Ruben stopped driving
 
 /* A kernel thread or user process.
@@ -126,6 +127,9 @@ struct thread
 		struct file *file_list[MAX_FILES];  /* List of files that a thread has */
 		struct file *exec_file;				/* Exec file that thread is running */
 		//Siva and Ruben stopped driving
+
+		struct hash sup_table;
+		bool spt_initialized;
 	};
 
 /* If false (default), use round-robin scheduler.

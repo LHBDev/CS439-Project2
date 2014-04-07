@@ -5,4 +5,4 @@
 //Swap table methods
 void swap_init (void);
 void swap_out (void);
-void swap_out (void);
+void swap_in (void);
