@@ -189,6 +189,7 @@ thread_create (const char *name, int priority,
 	//Point the created thread to its parent
 	//Siva started driving
 	t->parent = thread_current();
+	sup_table_init(&t->sup_table);
 	//Siva stopped driving
 
 	/* Prepare thread for first run by initializing its stack.

@@ -93,20 +93,14 @@ free_frame (uint8_t *pt_entry)
 //lookup a frame, just find something empty (null pointer/bits)
 //do we need synch here?
 struct frame *
-lookup_frame (void *frame)
+lookup_frame (uint8_t *pte)
 {
-  struct hash_iterator i;
-  struct frame *f;
+  struct frame lookup;
+  struct hash_elem *e;
 
-  hash_first (&i, &frame_table);
-  while (hash_next (&i))
-    {
-      f = hash_entry (hash_cur (&i), struct frame, hash_elem);
-      if(f->frame == frame)
-        return f;
-    }
-
-  return NULL;
+  lookup.pte = pte;
+  e = hash_find(&frame_table, &lookup.hash_elem);
+  return e ? hash_entry(e, struct frame, hash_elem) : NULL;
 }
 
 //no clock algo so far, just random

@@ -1,4 +1,4 @@
 #!/bin/sh
 git add *
-git commit -m "A good deal of frame.c done"
+git commit -m "added pte update"
 git push -u origin frame_table

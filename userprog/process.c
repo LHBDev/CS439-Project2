@@ -487,6 +487,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	ASSERT (ofs % PGSIZE == 0);
 
 	struct page *upage_entry;
+	struct thread *cur = thread_current();
 
 	file_seek (file, ofs);
 	while (read_bytes > 0 || zero_bytes > 0) 
@@ -499,19 +500,23 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 			//!!!Need to lazy load these pages(load nothing in this method)!!!
 			//fill in sup table entry
+
+			if(!pagedir_get_page (cur->pagedir, upage))
+				return false;
 			/* Get a page of memory. */
-			if(thread_current()->spt_initialized) {
-				sup_table_init(&thread_current()->sup_table);
-				thread_current()->spt_initialized = true;
-			}
+			// uint8_t *kpage = palloc_get_page (PAL_USER);
 
-			uint8_t *kpage = palloc_get_page (PAL_USER);
+			//Add page table entry and properties
+			upage_entry = insert_page(upage);
+			if(!upage_entry)
+				return false;
 
-			if(page_zero_bytes == PGSIZE) {
-				upage_entry = page_lookup(upage);
-				upage_entry->type = ALL_ZERO;
-			}
-
+			if(page_zero_bytes == PGSIZE)
+				upage_entry->zero_page = true;
+			
+			upage_entry->type = IN_FILE;
+			upage_entry->has_loaded = false;
+			upage_entry->read_only = !writable;
 
 			// if (kpage == NULL)
 			// 	return false;

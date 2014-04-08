@@ -19,5 +19,5 @@ bool frame_less(const struct hash_elem *, const struct hash_elem *,
 void frame_init(void);
 void * obtain_frame (uint8_t *);
 void free_frame (uint8_t *);
-struct frame * lookup_frame (void *);
+struct frame * lookup_frame (uint8_t *);
 void evict_frame (void);

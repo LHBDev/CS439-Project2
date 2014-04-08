@@ -178,8 +178,8 @@ point page table entry for faulting virtual address to physical page-look at pag
   if(!spt_entry) {
     if(fault_addr >= f->esp - 32 && user && write) {
       //if stack has overflowed stack limit
-      if(fault_vpage - PHYS_BASE >= STACK_LIMIT)
-        exit(-1);
+      // if(fault_vpage - PHYS_BASE >= STACK_LIMIT)
+      //   exit(-1);
     }
   } else {
     //either load from file or load from swap

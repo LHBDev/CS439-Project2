@@ -41,23 +41,35 @@ sup_table_init (struct hash *sup_table)
 }
 
 //TODO: ensure synchronization
-void
+struct page *
 insert_page (void *virt_address)
 {
 	struct page *p;
+	struct thread *cur = thread_current();
 
 	p = malloc(sizeof(struct page));
 	p->vaddr = virt_address;
-	// p->owner = thread_current();
 	//make page point to the frame?
 	// p->frame = palloc_frame;
-	// p->pte = pt_entry;
 	//might need to put info about page table entry
 	//this insert might not insert if there is a collision
 	//should this insert be synchronized??
 	// lock_acquire(&ft_lock);
-	hash_insert(&thread_current()->sup_table, &p->hash_elem);
+	hash_insert(&cur->sup_table, &p->hash_elem);
 	// lock_release(&ft_lock);
+	return p;
+}
+
+void
+page_free (struct page *p)
+{
+	struct thread *cur = thread_current();
+
+	lock_acquire(&sup_lock);
+	
+	hash_delete (&cur->sup_table, &p->hash_elem);
+	free(p);
+	lock_release(&sup_lock);
 }
 
 //NOTE: The following function is adapted from the hash
