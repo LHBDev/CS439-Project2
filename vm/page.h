@@ -8,7 +8,7 @@
 enum page_type
 {
 	IN_FILE,
-	IN_SWAP;
+	IN_SWAP
 };
 
 //Following struct definition slightly adapted from the pintos
@@ -19,6 +19,9 @@ struct page
 	enum page_type type;
 	//should probably include booleans to indicate statuses of pages,
 	//dirty, reference, pinned etc.
+	struct file * load_file;
+	uint32_t read_bytes;
+
 	bool read_only;
 	bool has_loaded;
 	bool zero_page;

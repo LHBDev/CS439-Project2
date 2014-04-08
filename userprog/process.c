@@ -417,7 +417,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 /* load() helpers. */
 
-static bool install_page (void *upage, void *kpage, bool writable);
+// static bool install_page (void *upage, void *kpage, bool writable);
 
 /* Checks whether PHDR describes a valid, loadable segment in
 	 FILE and returns true if so, false otherwise. */
@@ -501,12 +501,10 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 			//!!!Need to lazy load these pages(load nothing in this method)!!!
 			//fill in sup table entry
 
-			if(!pagedir_get_page (cur->pagedir, upage))
-				return false;
 			/* Get a page of memory. */
 			// uint8_t *kpage = palloc_get_page (PAL_USER);
 
-			//Add page table entry and properties
+			// Add page table entry and properties
 			upage_entry = insert_page(upage);
 			if(!upage_entry)
 				return false;
@@ -515,8 +513,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 				upage_entry->zero_page = true;
 			
 			upage_entry->type = IN_FILE;
+			upage_entry->load_file = file;
+			upage_entry->read_bytes = page_read_bytes;
 			upage_entry->has_loaded = false;
 			upage_entry->read_only = !writable;
+			// printf("here %d\n", zero_bytes);
 
 			// if (kpage == NULL)
 			// 	return false;
@@ -564,6 +565,8 @@ setup_stack (void **esp)
 	
 	// use frame allocator for stack page
 	kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+	//Add page table entry and properties
+
 	if (kpage != NULL) 
 		{
 			success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
@@ -630,7 +633,7 @@ setup_stack (void **esp)
 	 with palloc_get_page().
 	 Returns true on success, false if UPAGE is already mapped or
 	 if memory allocation fails. */
-static bool
+bool
 install_page (void *upage, void *kpage, bool writable)
 {
 	struct thread *t = thread_current ();

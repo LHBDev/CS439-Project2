@@ -41,13 +41,12 @@ frame_init (void)
 
 //combine allocing of frames and getting a frame
 void *
-obtain_frame (uint8_t *pt_entry)
+obtain_frame (uint8_t *pt_entry, bool zero_page)
 {
   struct frame *f;
   void *palloc_frame;
 
-  palloc_frame = palloc_get_page(PAL_USER);
-
+  palloc_frame = zero_page ? palloc_get_page(PAL_USER | PAL_ZERO) : palloc_get_page(PAL_USER);
   //Returned frame is not null, put the user page in the free frame
   if(palloc_frame)
     {
@@ -75,15 +74,11 @@ obtain_frame (uint8_t *pt_entry)
 void
 free_frame (uint8_t *pt_entry)
 {
-  struct frame lookup;
   struct frame *target;
-  struct hash_elem *e;
 
-  lookup.pte = pt_entry;
-  e = hash_find(&frame_table, &lookup.hash_elem);
-  if(e)
+  target = lookup_frame(pt_entry);
+  if(target)
     {
-      target = hash_entry(e, struct frame, hash_elem);
       hash_delete(&frame_table, &target->hash_elem);
       free(target);
       palloc_free_page(pt_entry);

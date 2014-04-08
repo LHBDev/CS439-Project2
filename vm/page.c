@@ -79,11 +79,12 @@ page_free (struct page *p)
 struct page *
 page_lookup (void *virt_address)
 {
+	struct thread *cur = thread_current();
 	struct page lookup;
 	struct hash_elem *e;
 
 	lookup.vaddr = virt_address;
-	e = hash_find(&thread_current()->sup_table, &lookup.hash_elem);
+	e = hash_find(&cur->sup_table, &lookup.hash_elem);
 	return e ? hash_entry(e, struct page, hash_elem) : NULL;
 }
 

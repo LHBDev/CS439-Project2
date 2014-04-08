@@ -1,4 +1,4 @@
 #!/bin/sh
 git add *
-git commit -m "added pte update"
+git commit -m "Errors..."
 git push -u origin frame_table
