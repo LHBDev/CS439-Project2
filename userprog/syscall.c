@@ -12,6 +12,7 @@
 #include "lib/user/syscall.h"
 #include "devices/shutdown.h"
 #include "devices/input.h"
+#include "vm/page.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -152,7 +153,7 @@ exit (int status)
 
 	lock_acquire(&file_lock);
 	file_close(cur->exec_file);
-	lock_release(&file_lock);	
+	lock_release(&file_lock);
 
 	sema_down(&cur->exit_sema);
 
@@ -162,6 +163,7 @@ exit (int status)
 	sema_up(&cur->parent->wait_sema);
 	if(cur->is_user_process)
 		printf("%s: exit(%d)\n", cur->name, status);
+	sup_table_free();
 
 	thread_exit();
 }

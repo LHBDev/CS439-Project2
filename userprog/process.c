@@ -487,7 +487,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	ASSERT (ofs % PGSIZE == 0);
 
 	struct page *upage_entry;
-	struct thread *cur = thread_current();
 
 	file_seek (file, ofs);
 	while (read_bytes > 0 || zero_bytes > 0) 
@@ -497,12 +496,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 				 and zero the final PAGE_ZERO_BYTES bytes. */
 			size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 			size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
-			//!!!Need to lazy load these pages(load nothing in this method)!!!
-			//fill in sup table entry
-
-			/* Get a page of memory. */
-			// uint8_t *kpage = palloc_get_page (PAL_USER);
 
 			// Add page table entry and properties
 			upage_entry = insert_page(upage);
@@ -515,27 +508,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 			upage_entry->type = IN_FILE;
 			upage_entry->load_file = file;
 			upage_entry->read_bytes = page_read_bytes;
+			upage_entry->file_ofs = ofs;
 			upage_entry->has_loaded = false;
 			upage_entry->read_only = !writable;
-			// printf("here %d\n", zero_bytes);
 
-			// if (kpage == NULL)
-			// 	return false;
-
-			// /* Load this page. */
-			// if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-			// 	{
-			// 		palloc_free_page (kpage);
-			// 		return false; 
-			// 	}
-			// memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
-			// /* Add the page to the process's address space. */
-			// if (!install_page (upage, kpage, writable)) 
-			// 	{
-			// 		palloc_free_page (kpage);
-			// 		return false; 
-			// 	}
+			ofs += page_read_bytes;
 
 			/* Advance. */
 			read_bytes -= page_read_bytes;
@@ -562,21 +539,30 @@ setup_stack (void **esp)
 	char *curr_str;
 	uint8_t word_align = 0;
 	int i, temp_ptr;
+	void *vaddr;
+	struct page *upage_entry;
 	
-	// use frame allocator for stack page
-	kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-	//Add page table entry and properties
+	//Add page table entry and properties and use frame allocator for stack page
+	vaddr = (void *) PHYS_BASE - PGSIZE;
+	upage_entry = insert_page(vaddr);
+	if(!upage_entry)
+		return false;
+			
+	upage_entry->type = IN_SWAP;
+	upage_entry->has_loaded = true;
+	upage_entry->read_only = false;
+	kpage = obtain_frame(vaddr, true);
+
 
 	if (kpage != NULL) 
 		{
-			success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+			success = install_page (vaddr, kpage, true);
 			if (success)
-				*esp = PHYS_BASE - 12;
+				*esp = PHYS_BASE;
 			else
-				palloc_free_page (kpage);
+				free_frame(vaddr);
 		}
 
-	*esp = PHYS_BASE;
 	//Push the cmd line strings onto the stack
 	for(i = argc - 1; i >= 0; i--)
 		{

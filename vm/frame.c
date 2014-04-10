@@ -5,117 +5,137 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/malloc.h"
+#include "userprog/pagedir.h"
 
 //Global Vars
 struct hash frame_table;
 struct lock ft_lock;
+struct hash_elem *hand;
 
 /* Returns a hash value for frame p. */
 unsigned
 frame_hash (const struct hash_elem *f_, void *aux UNUSED)
 {
-  const struct frame *f = hash_entry (f_, struct frame, hash_elem);
-  return hash_bytes (&f->pte, sizeof f->pte);
+	const struct frame *f = hash_entry (f_, struct frame, hash_elem);
+	return hash_bytes (&f->pte, sizeof f->pte);
 }
 
 /* Returns true if frame a precedes frame b. */
 bool
 frame_less (const struct hash_elem *a_, const struct hash_elem *b_,
-           void *aux UNUSED)
+					 void *aux UNUSED)
 {
-  const struct frame *a = hash_entry (a_, struct frame, hash_elem);
-  const struct frame *b = hash_entry (b_, struct frame, hash_elem);
+	const struct frame *a = hash_entry (a_, struct frame, hash_elem);
+	const struct frame *b = hash_entry (b_, struct frame, hash_elem);
 
-  return a->pte < b->pte;
+	return a->pte < b->pte;
 }
 
 void
 frame_init (void)
 {
 	hash_init(&frame_table, frame_hash, frame_less, NULL);
-  lock_init(&ft_lock);
+	lock_init(&ft_lock);
+	hand = NULL;
 }
-
-//need to allocate all the user pages, also need to free them sometime
-//free_frames and alloc_frames?
 
 //combine allocing of frames and getting a frame
 void *
 obtain_frame (uint8_t *pt_entry, bool zero_page)
 {
-  struct frame *f;
-  void *palloc_frame;
+	struct frame *f;
+	void *palloc_frame;
 
-  palloc_frame = zero_page ? palloc_get_page(PAL_USER | PAL_ZERO) : palloc_get_page(PAL_USER);
-  //Returned frame is not null, put the user page in the free frame
-  if(palloc_frame)
-    {
-      f = malloc(sizeof(struct frame));
-      f->owner = thread_current();
-      f->frame = palloc_frame;
-      f->pte = pt_entry;
-      //might need to put info about page table entry
-      //this insert might not insert if there is a collision
-      //should this insert be synchronized??
-      // lock_acquire(&ft_lock);
-      hash_insert(&frame_table, &f->hash_elem);
-      // lock_release(&ft_lock);
-    }
-  //no more frames, need to evict and swap frames
-  else
-    {
-      PANIC ("Nope. Don't even.");
-    }
+	palloc_frame = zero_page ? palloc_get_page(PAL_USER | PAL_ZERO)
+													 : palloc_get_page(PAL_USER);
+	//Returned frame is null, need to evict
+	if(!palloc_frame)
+		palloc_frame = evict_frame(zero_page);
 
-    return palloc_frame;
+	lock_acquire(&ft_lock);
+	f = malloc(sizeof(struct frame));
+	f->owner = thread_current();
+	// f->frame = palloc_frame;
+	f->pte = pt_entry;
+	hash_insert(&frame_table, &f->hash_elem);
+	lock_release(&ft_lock);
+
+	return palloc_frame;
 }
 
-//TODO: synch needed
 void
 free_frame (uint8_t *pt_entry)
 {
-  struct frame *target;
+	struct frame *target;
 
-  target = lookup_frame(pt_entry);
-  if(target)
-    {
-      hash_delete(&frame_table, &target->hash_elem);
-      free(target);
-      palloc_free_page(pt_entry);
-    }
+	lock_acquire(&ft_lock);
+	target = lookup_frame(pt_entry);
+	if(target)
+		{
+			hash_delete(&frame_table, &target->hash_elem);
+			free(target);
+			palloc_free_page(pt_entry);
+		}
+	lock_release(&ft_lock);
 }
 
 //lookup a frame, just find something empty (null pointer/bits)
-//do we need synch here?
 struct frame *
 lookup_frame (uint8_t *pte)
 {
-  struct frame lookup;
-  struct hash_elem *e;
+	struct frame lookup;
+	struct hash_elem *e;
 
-  lookup.pte = pte;
-  e = hash_find(&frame_table, &lookup.hash_elem);
-  return e ? hash_entry(e, struct frame, hash_elem) : NULL;
+	lookup.pte = pte;
+	e = hash_find(&frame_table, &lookup.hash_elem);
+	return e ? hash_entry(e, struct frame, hash_elem) : NULL;
 }
 
-//no clock algo so far, just random
-void
-evict_frame (void)
+void *
+evict_frame (bool zero_page)
 {
-  //implement clock algo for choosing frame//
-  //iterate through hash table
-  //check reference bit-clear it
-  //check if page in frame is dirty - pagedir.c pagedir_is_dirty()?
-  struct hash_iterator i;
+	struct hash_iterator it;
   struct frame *f;
-  
-  hash_first(&i, &frame_table);
-  while(hash_next (&i))
+  void *vpage = NULL, *palloc_frame;
+
+  if(hand)
+    it.elem = hand;
+  else
+    hash_first(&it, &frame_table);
+
+  lock_acquire(&ft_lock);
+  while(!vpage)
   {
-    f = hash_entry(hash_cur(&i), struct frame, hash_elem);
-    //check/modify reference bit
-    //free the page
+    f = hash_entry(hash_cur(&it), struct frame, hash_elem);
+
+    if(!pagedir_is_accessed(f->owner->pagedir, &f->pte))
+    {
+        if(!pagedir_is_dirty(f->owner->pagedir, &f->pte))
+        {
+          if(f->remember_dirty)
+            swap_out(f->pte);
+          vpage = &f->pte;
+          palloc_free_page(&f->pte);
+          palloc_frame = zero_page ? palloc_get_page(PAL_USER | PAL_ZERO)
+                    							 : palloc_get_page(PAL_USER);
+          lock_release(&ft_lock);
+          return palloc_frame;
+        }
+        else
+        {
+          pagedir_set_dirty(f->owner->pagedir, &f->pte, false);
+          f->remember_dirty = true;
+        }
+    }
+    else
+    {
+      pagedir_set_accessed(f->owner->pagedir, &f->pte, false);
+    }
+    hand = hash_cur(&it);
+    if(!hash_next(&it))
+      hash_first(&it, &frame_table);
   }
+
+  NOT_REACHED();
 }
-//any more???
-//clock algorithm that jumps over pinned frames
+

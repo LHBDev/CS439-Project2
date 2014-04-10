@@ -13,6 +13,7 @@
 #include "filesys/filesys.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -139,7 +140,7 @@ page_fault (struct intr_frame *f)
 
 	//Added variables
 	void *fault_vpage; /* Virtual page of the fault address. */
-	void *phys_page;
+	void *kpage;
 	struct page *spt_entry;
 
 	/* Obtain faulting address, the virtual address that was
@@ -168,58 +169,68 @@ page_fault (struct intr_frame *f)
 		exit(-1);
 	//Ruben stopped driving
 
-/*
-TODO:
-handle fault by looking page up in supp. table
-use page table entry to locate data for page- in file system or swap
-obtain a frame for page-might already be in frame if sharing
-fetch data into frame = reading from file or swap, or zeroing it
-if sharing and page in frame done
-point page table entry for faulting virtual address to physical page-look at pagedir.c
-*/
+	if(is_kernel_vaddr(fault_addr) || !fault_addr)
+		exit(-1);
 
 	//Page fault handler
-	fault_vpage = pg_round_down(fault_addr);
-	spt_entry = page_lookup(fault_vpage);
-	// printf("%08x\n", (unsigned) fault_addr);
-	//spt does not contain this page, illegal access or stack growth?
-	if(!spt_entry)
+	if(not_present)
 		{
-		// printf("HEREHERE\n");
-		// if(fault_addr >= f->esp - 32 && user && write) {
-		//   //if stack has overflowed stack limit
-		//   // if(fault_vpage - PHYS_BASE >= STACK_LIMIT)
-		//   //   exit(-1);
-		// }
-		}
-	else
-		{
-			if(spt_entry->has_loaded)
-				return;
-			//load from file
-			if(spt_entry->type == IN_FILE)
+			fault_vpage = pg_round_down(fault_addr);
+			spt_entry = lookup_page(fault_vpage);
+			//spt does not contain this page, illegal access or stack growth?
+			if(!spt_entry)
 				{
-					phys_page = obtain_frame(spt_entry->vaddr, spt_entry->zero_page);
-					spt_entry->has_loaded = true;
+					//Check if we need to allow stack growth
+					if(fault_addr >= f->esp - 32 && 
+						 fault_vpage >= (PHYS_BASE - STACK_LIMIT))
+						{
+							spt_entry = insert_page(fault_vpage);
+							spt_entry->type = IN_SWAP;
+							spt_entry->has_loaded = true;
+							spt_entry->read_only = false;
 
-					if (file_read (spt_entry->load_file, phys_page, spt_entry->read_bytes) != (int) spt_entry->read_bytes) {
-						free_frame(phys_page);
-						// return;
-					}
-					memset (phys_page + spt_entry->read_bytes, 0, PGSIZE - spt_entry->read_bytes);
+							kpage = obtain_frame(fault_vpage, true);
 
-					// /* Add the page to the process's address space. */
-					if (!install_page (fault_vpage, phys_page, !spt_entry->read_only)) 
-					{
-						free_frame(phys_page);
-						// return;
-					}
+							if (kpage) 
+								if (!install_page (fault_vpage, kpage, true))
+									free_frame(fault_vpage);
+						} else {
+							exit(-1);
+						}
 				}
-			//load from swap
-			else if(spt_entry->type == IN_SWAP)
+			else
 				{
+					if(spt_entry->has_loaded)
+						return;
+					//load from file
+					if(spt_entry->type == IN_FILE)
+						{
+							kpage = obtain_frame(fault_vpage, spt_entry->zero_page);
+							if (file_read_at (spt_entry->load_file, kpage, spt_entry->read_bytes, spt_entry->file_ofs) != (int) spt_entry->read_bytes)
+								{
+									free_frame(kpage);
+									return;
+								}
+							memset (kpage + spt_entry->read_bytes, 0, (PGSIZE - spt_entry->read_bytes));
 
-				} 
+							 // Add the page to the process's address space. 
+							if (!install_page (fault_vpage, kpage, (!spt_entry->read_only)))
+								{
+									free_frame(kpage);
+									return;
+								}
+						}
+					//load from swap
+					else if(spt_entry->type == IN_SWAP)
+						{
+							kpage = swap_in(spt_entry->vaddr, spt_entry->swp);
+							if (!install_page (fault_vpage, kpage, (!spt_entry->read_only)))
+								{
+									free_frame(kpage);
+									return;
+								}
+						}
+					spt_entry->has_loaded = true;
+				}
 		}
-	//stack growth or loading page, either from file or swap
 }

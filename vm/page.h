@@ -1,6 +1,7 @@
 #include <hash.h>
 #include <debug.h>
 #include <stdint.h>
+#include "filesys/file.h"
 //Put Desired methods, put desired includes, maybe some struct definitions
 //such
 
@@ -19,13 +20,16 @@ struct page
 	enum page_type type;
 	//should probably include booleans to indicate statuses of pages,
 	//dirty, reference, pinned etc.
-	struct file * load_file;
+	struct file *load_file;
+	off_t file_ofs;
 	uint32_t read_bytes;
+
+	int swp;
 
 	bool read_only;
 	bool has_loaded;
 	bool zero_page;
-	struct frame *mapped_frame;
+	// struct frame *mapped_frame;
 	struct hash_elem hash_elem;
 };
 
@@ -33,10 +37,11 @@ struct page
 unsigned page_hash(const struct hash_elem *, void * UNUSED);
 bool page_less(const struct hash_elem *, const struct hash_elem *,
            void * UNUSED);
+void page_action_func (struct hash_elem *, void * UNUSED);
 
 /*Sup Table functions*/
 void sup_table_init (struct hash *);
-void sup_table_free (struct hash *);
-struct page *page_lookup (void *);
+void sup_table_free (void);
+struct page *lookup_page (void *);
 struct page *insert_page (void *);
-void page_free (struct page *);
+void free_page (struct page *);

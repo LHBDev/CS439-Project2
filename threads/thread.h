@@ -30,7 +30,7 @@ typedef int tid_t;
 //Ruben started driving
 #define MAX_ARGS  128           /* Maximum number of cmd line args */
 #define WORD_LENGTH 4           /* Length of a word in Pintos */
-#define STACK_LIMIT 1 << 23	    /* How much stack can grow to - 8MB */
+#define STACK_LIMIT (1 << 23)   /* How much stack can grow to - 8MB */
 #define MAX_FILES 128			/* Maximum number of files a thread can have */
 //Ruben stopped driving
 

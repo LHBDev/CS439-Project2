@@ -6,8 +6,7 @@
 #include "threads/malloc.h"
 
 //Global vars
-// struct hash sup_table;
-struct lock sup_lock;
+// struct lock sup_lock;
 
 //NOTE: The following hash functions are adapted from the hash
 //table example in the pintos document sheet (Section A.8.5)
@@ -33,6 +32,13 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_,
 
 //END NOTE
 
+void
+page_action_func (struct hash_elem *a_, void *aux UNUSED)
+{
+	struct page *a = hash_entry (a_, struct page, hash_elem);
+	free_page(a);
+}
+
 /* Initialize supplemental page table for the thread */
 void
 sup_table_init (struct hash *sup_table)
@@ -40,7 +46,14 @@ sup_table_init (struct hash *sup_table)
 	hash_init(sup_table, page_hash, page_less, NULL);
 }
 
-//TODO: ensure synchronization
+void
+sup_table_free (void)
+{
+	struct thread *cur = thread_current();
+
+	hash_destroy(&cur->sup_table, page_action_func);
+}
+
 struct page *
 insert_page (void *virt_address)
 {
@@ -49,27 +62,18 @@ insert_page (void *virt_address)
 
 	p = malloc(sizeof(struct page));
 	p->vaddr = virt_address;
-	//make page point to the frame?
-	// p->frame = palloc_frame;
-	//might need to put info about page table entry
-	//this insert might not insert if there is a collision
-	//should this insert be synchronized??
-	// lock_acquire(&ft_lock);
 	hash_insert(&cur->sup_table, &p->hash_elem);
-	// lock_release(&ft_lock);
+
 	return p;
 }
 
 void
-page_free (struct page *p)
+free_page (struct page *p)
 {
 	struct thread *cur = thread_current();
 
-	lock_acquire(&sup_lock);
-	
 	hash_delete (&cur->sup_table, &p->hash_elem);
 	free(p);
-	lock_release(&sup_lock);
 }
 
 //NOTE: The following function is adapted from the hash
@@ -77,7 +81,7 @@ page_free (struct page *p)
 
 /* Locate the page that faulted */
 struct page *
-page_lookup (void *virt_address)
+lookup_page (void *virt_address)
 {
 	struct thread *cur = thread_current();
 	struct page lookup;
@@ -89,9 +93,3 @@ page_lookup (void *virt_address)
 }
 
 //END NOTE
-
-/*
-TODO:
-locate page that faulted 
-exit process if all zero page, within kernel memory, or write to read-only
-else return to page fault handler */
