@@ -18,10 +18,11 @@
 static void syscall_handler (struct intr_frame *);
 
 /* Helper Functions */
-bool esp_valid (void *esp);
-bool pointer_valid (void * given_addr);
-bool fd_valid (int fd);
-struct file * fd_to_file (int fd);
+bool esp_valid (void *);
+bool rw_access_valid (void *);
+bool pointer_valid (void * );
+bool fd_valid (int);
+struct file * fd_to_file (int);
 
 /* Added global variables */
 struct lock file_lock;
@@ -310,7 +311,7 @@ read (int fd, void *buffer, unsigned size)
 	int bytes_read = 0;
 	unsigned size_copy = size;
 
-	if(!pointer_valid(buffer) || !fd_valid(fd))
+	if(!pointer_valid(buffer) || !fd_valid(fd) || !rw_access_valid(buffer))
 		exit(-1);
 
 	lock_acquire(&file_lock);
@@ -349,7 +350,8 @@ write (int fd, const void *buffer, unsigned size)
 	struct file *fd_file;
 	int bytes_written = 0;
 
-	if(!pointer_valid((void *) buffer) || !fd_valid(fd))
+	if(!pointer_valid((void *) buffer) || !fd_valid(fd) ||
+	   !rw_access_valid((void *)buffer))
 		exit(-1);
 
 	lock_acquire(&file_lock);
@@ -456,6 +458,17 @@ esp_valid (void *esp)
 		else
 			return false;
 	}
+	return true;
+}
+
+bool
+rw_access_valid (void *buffer)
+{
+	struct page *spt_entry;
+
+	spt_entry = lookup_page(pg_round_down(buffer), thread_current());
+	if(spt_entry->read_only)
+		return false;
 	return true;
 }
 
