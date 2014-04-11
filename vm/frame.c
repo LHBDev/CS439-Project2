@@ -51,15 +51,15 @@ obtain_frame (uint8_t *pt_entry, bool zero_page)
 	//Returned frame is null, need to evict
 	if(!palloc_frame)
 		palloc_frame = evict_frame(zero_page);
-
-	lock_acquire(&ft_lock);
-	f = malloc(sizeof(struct frame));
-	f->owner = thread_current();
-	// f->frame = palloc_frame;
-	f->pte = pt_entry;
-	hash_insert(&frame_table, &f->hash_elem);
-	lock_release(&ft_lock);
-
+	else
+		{
+			lock_acquire(&ft_lock);
+			f = malloc(sizeof(struct frame));
+			f->owner = thread_current();
+			f->pte = pt_entry;
+			hash_insert(&frame_table, &f->hash_elem);
+			lock_release(&ft_lock);
+		}
 	return palloc_frame;
 }
 
@@ -96,6 +96,7 @@ evict_frame (bool zero_page)
 {
 	struct hash_iterator it;
   struct frame *f;
+  struct page *spt_entry;
   void *vpage = NULL, *palloc_frame;
 
   if(hand)
@@ -107,30 +108,38 @@ evict_frame (bool zero_page)
   while(!vpage)
   {
     f = hash_entry(hash_cur(&it), struct frame, hash_elem);
+    spt_entry = lookup_page(f->pte, f->owner);
 
     if(!pagedir_is_accessed(f->owner->pagedir, &f->pte))
-    {
+    	{
         if(!pagedir_is_dirty(f->owner->pagedir, &f->pte))
-        {
-          if(f->remember_dirty)
-            swap_out(f->pte);
-          vpage = &f->pte;
-          palloc_free_page(&f->pte);
-          palloc_frame = zero_page ? palloc_get_page(PAL_USER | PAL_ZERO)
-                    							 : palloc_get_page(PAL_USER);
-          lock_release(&ft_lock);
-          return palloc_frame;
-        }
+	        {
+	          if(f->remember_dirty)
+	            swap_out(f->pte);
+
+	          vpage = &f->pte;
+	          spt_entry->has_loaded = false;
+	          spt_entry->type = IN_SWAP;
+	          f->remember_dirty = false;
+
+	          pagedir_clear_page(f->owner->pagedir, &f->pte);
+	          palloc_free_page(&f->pte);
+	          palloc_frame = zero_page ? palloc_get_page(PAL_USER | PAL_ZERO)
+	                    							 : palloc_get_page(PAL_USER);
+	          lock_release(&ft_lock);
+	          return palloc_frame;
+	        }
         else
-        {
-          pagedir_set_dirty(f->owner->pagedir, &f->pte, false);
-          f->remember_dirty = true;
-        }
-    }
+	        {
+	          pagedir_set_dirty(f->owner->pagedir, &f->pte, false);
+	          f->remember_dirty = true;
+	        }
+   	 }
     else
-    {
-      pagedir_set_accessed(f->owner->pagedir, &f->pte, false);
-    }
+    	{
+      	pagedir_set_accessed(f->owner->pagedir, &f->pte, false);
+    	}
+    	
     hand = hash_cur(&it);
     if(!hash_next(&it))
       hash_first(&it, &frame_table);

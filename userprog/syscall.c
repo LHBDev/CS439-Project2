@@ -1,6 +1,7 @@
 #include "userprog/syscall.h"
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
+#include "userprog/exception.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
@@ -17,6 +18,7 @@
 static void syscall_handler (struct intr_frame *);
 
 /* Helper Functions */
+bool esp_valid (void *esp);
 bool pointer_valid (void * given_addr);
 bool fd_valid (int fd);
 struct file * fd_to_file (int fd);
@@ -43,8 +45,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 {
 	int call_num, first_arg, second_arg, third_arg;
 
+	thread_current()->user_esp = f->esp;
 	//Checks the validity of the esp location
-	if(!pointer_valid(f->esp))
+	if(!esp_valid(f->esp))
 		exit(-1);
 
 	//Get the system call number
@@ -433,10 +436,35 @@ close (int fd)
 
 /*Checks the validity of a passed in user address. Can't 
 	trust those foos.*/
+bool
+esp_valid (void *esp)
+{
+	struct page *spt_entry;
+	void *fault_vpage, *kpage;
+
+	if(!esp || is_kernel_vaddr(esp))
+		return false;
+
+	fault_vpage = pg_round_down(esp);
+	spt_entry = lookup_page(fault_vpage, thread_current());
+
+	if(!spt_entry)
+	{
+		if(fault_vpage >= esp - 32 && 
+			 fault_vpage >= (PHYS_BASE - STACK_LIMIT))
+			stack_growth (fault_vpage, kpage);
+		else
+			return false;
+	}
+	return true;
+}
+
 //Ruben started driving
 bool
-pointer_valid (void * given_addr)
+pointer_valid (void *given_addr)
 {
+	// struct page *spt_entry = lookup_page(pg_round_down(given_addr));
+
 	if(!(given_addr) || is_kernel_vaddr(given_addr))
 		return false;
 

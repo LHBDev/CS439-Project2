@@ -5,9 +5,6 @@
 #include "threads/synch.h"
 #include "threads/malloc.h"
 
-//Global vars
-// struct lock sup_lock;
-
 //NOTE: The following hash functions are adapted from the hash
 //table example in the pintos document sheet (Section A.8.5)
 
@@ -81,9 +78,9 @@ free_page (struct page *p)
 
 /* Locate the page that faulted */
 struct page *
-lookup_page (void *virt_address)
+lookup_page (void *virt_address, struct thread *owner)
 {
-	struct thread *cur = thread_current();
+	struct thread *cur = owner;
 	struct page lookup;
 	struct hash_elem *e;
 

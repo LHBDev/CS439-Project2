@@ -553,7 +553,6 @@ setup_stack (void **esp)
 	upage_entry->read_only = false;
 	kpage = obtain_frame(vaddr, true);
 
-
 	if (kpage != NULL) 
 		{
 			success = install_page (vaddr, kpage, true);

@@ -9,4 +9,6 @@
 void exception_init (void);
 void exception_print_stats (void);
 
+void stack_growth (void *, void *);
+
 #endif /* userprog/exception.h */

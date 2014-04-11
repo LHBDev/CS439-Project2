@@ -2,6 +2,7 @@
 #include <debug.h>
 #include <stdint.h>
 #include "filesys/file.h"
+#include "threads/thread.h"
 //Put Desired methods, put desired includes, maybe some struct definitions
 //such
 
@@ -29,7 +30,6 @@ struct page
 	bool read_only;
 	bool has_loaded;
 	bool zero_page;
-	// struct frame *mapped_frame;
 	struct hash_elem hash_elem;
 };
 
@@ -42,6 +42,6 @@ void page_action_func (struct hash_elem *, void * UNUSED);
 /*Sup Table functions*/
 void sup_table_init (struct hash *);
 void sup_table_free (void);
-struct page *lookup_page (void *);
+struct page *lookup_page (void *, struct thread *);
 struct page *insert_page (void *);
 void free_page (struct page *);

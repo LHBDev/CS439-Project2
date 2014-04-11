@@ -130,6 +130,7 @@ struct thread
 
 		//Project 3 Code
 		struct hash sup_table;
+		void *user_esp;
 	};
 
 /* If false (default), use round-robin scheduler.

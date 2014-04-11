@@ -1,4 +1,4 @@
 #!/bin/sh
 git add *
-git commit -m "Errors..."
+git commit -m "5 tests failing"
 git push -u origin frame_table

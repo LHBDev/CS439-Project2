@@ -22,7 +22,7 @@ swap_out (uint8_t *vaddr)
 {
 	int i, swp_ind;
 	struct frame *frame = lookup_frame(vaddr);
-	struct page *spt_entry = lookup_page(vaddr);
+	struct page *spt_entry = lookup_page(vaddr, frame->owner);
 
 	swp_ind = bitmap_scan_and_flip(swap_table, 0, PGSIZE / BLOCK_SECTOR_SIZE, false);
 	spt_entry->swp = swp_ind;

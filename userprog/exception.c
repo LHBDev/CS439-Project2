@@ -140,6 +140,7 @@ page_fault (struct intr_frame *f)
 
 	//Added variables
 	void *fault_vpage; /* Virtual page of the fault address. */
+	void *actual_esp;
 	void *kpage;
 	struct page *spt_entry;
 
@@ -176,27 +177,21 @@ page_fault (struct intr_frame *f)
 	if(not_present)
 		{
 			fault_vpage = pg_round_down(fault_addr);
-			spt_entry = lookup_page(fault_vpage);
+			spt_entry = lookup_page(fault_vpage, thread_current());
 			//spt does not contain this page, illegal access or stack growth?
 			if(!spt_entry)
 				{
+					if(!user)
+						actual_esp = thread_current()->user_esp;
+					else
+						actual_esp = f->esp;
+					
 					//Check if we need to allow stack growth
-					if(fault_addr >= f->esp - 32 && 
+					if(fault_addr >= actual_esp - 32 && 
 						 fault_vpage >= (PHYS_BASE - STACK_LIMIT))
-						{
-							spt_entry = insert_page(fault_vpage);
-							spt_entry->type = IN_SWAP;
-							spt_entry->has_loaded = true;
-							spt_entry->read_only = false;
-
-							kpage = obtain_frame(fault_vpage, true);
-
-							if (kpage) 
-								if (!install_page (fault_vpage, kpage, true))
-									free_frame(fault_vpage);
-						} else {
-							exit(-1);
-						}
+							stack_growth(fault_vpage, kpage);
+					else
+						exit(-1);
 				}
 			else
 				{
@@ -233,4 +228,21 @@ page_fault (struct intr_frame *f)
 					spt_entry->has_loaded = true;
 				}
 		}
+}
+
+void
+stack_growth (void *fault_vpage, void *kpage)
+{
+	struct page *spt_entry;
+
+	spt_entry = insert_page(fault_vpage);
+	spt_entry->type = IN_SWAP;
+	spt_entry->has_loaded = true;
+	spt_entry->read_only = false;
+
+	kpage = obtain_frame(fault_vpage, true);
+
+	if (kpage) 
+		if (!install_page (fault_vpage, kpage, true))
+			free_frame(fault_vpage);
 }
