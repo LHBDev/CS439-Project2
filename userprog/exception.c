@@ -166,7 +166,7 @@ page_fault (struct intr_frame *f)
 	user = (f->error_code & PF_U) != 0;
 
 	//Ruben started driving
-	if(!not_present || !user)
+	if(!not_present)
 		exit(-1);
 	//Ruben stopped driving
 
@@ -189,49 +189,50 @@ page_fault (struct intr_frame *f)
 					//Check if we need to allow stack growth
 					if(fault_addr >= actual_esp - 32 && 
 						 fault_vpage >= (PHYS_BASE - STACK_LIMIT))
-							stack_growth(fault_vpage, kpage);
-					else
+							stack_growth(fault_vpage, &kpage);
+					else 
 						exit(-1);
 				}
 			else
 				{
-					if(spt_entry->has_loaded)
-						return;
-					//load from file
-					if(spt_entry->type == IN_FILE)
-						{
-							kpage = obtain_frame(fault_vpage, spt_entry->zero_page);
-							if (file_read_at (spt_entry->load_file, kpage, spt_entry->read_bytes, spt_entry->file_ofs) != (int) spt_entry->read_bytes)
-								{
-									free_frame(kpage);
-									return;
-								}
-							memset (kpage + spt_entry->read_bytes, 0, (PGSIZE - spt_entry->read_bytes));
+					load_file_swap(&fault_vpage, &kpage);
+					// if(spt_entry->has_loaded)
+					// 	return;
+					// //load from file
+					// if(spt_entry->type == IN_FILE)
+					// 	{
+					// 		kpage = obtain_frame(fault_vpage, spt_entry->zero_page);
+					// 		if (file_read_at (spt_entry->load_file, kpage, spt_entry->read_bytes, spt_entry->file_ofs) != (int) spt_entry->read_bytes)
+					// 			{
+					// 				free_frame(kpage);
+					// 				return;
+					// 			}
+					// 		memset (kpage + spt_entry->read_bytes, 0, (PGSIZE - spt_entry->read_bytes));
 
-							 // Add the page to the process's address space. 
-							if (!install_page (fault_vpage, kpage, (!spt_entry->read_only)))
-								{
-									free_frame(kpage);
-									return;
-								}
-						}
-					//load from swap
-					else if(spt_entry->type == IN_SWAP)
-						{
-							kpage = swap_in(spt_entry->vaddr, spt_entry->swp);
-							if (!install_page (fault_vpage, kpage, (!spt_entry->read_only)))
-								{
-									free_frame(kpage);
-									return;
-								}
-						}
-					spt_entry->has_loaded = true;
+					// 		 // Add the page to the process's address space. 
+					// 		if (!install_page (fault_vpage, kpage, (!spt_entry->read_only)))
+					// 			{
+					// 				free_frame(kpage);
+					// 				return;
+					// 			}
+					// 	}
+					// //load from swap
+					// else if(spt_entry->type == IN_SWAP)
+					// 	{
+					// 		kpage = swap_in(spt_entry->vaddr, spt_entry->swp);
+					// 		if (!install_page (fault_vpage, kpage, (!spt_entry->read_only)))
+					// 			{
+					// 				free_frame(kpage);
+					// 				return;
+					// 			}
+					// 	}
+					// spt_entry->has_loaded = true;
 				}
 		}
 }
 
 void
-stack_growth (void *fault_vpage, void *kpage)
+stack_growth (void *fault_vpage, void **kpage)
 {
 	struct page *spt_entry;
 
@@ -240,9 +241,47 @@ stack_growth (void *fault_vpage, void *kpage)
 	spt_entry->has_loaded = true;
 	spt_entry->read_only = false;
 
-	kpage = obtain_frame(fault_vpage, true);
+	*kpage = obtain_frame(fault_vpage, true);
 
-	if (kpage) 
-		if (!install_page (fault_vpage, kpage, true))
+	if (*kpage) 
+		if (!install_page (fault_vpage, *kpage, true))
 			free_frame(fault_vpage);
+}
+
+void
+load_file_swap (void **fault_vpage, void **kpage)
+{
+	struct page *spt_entry = lookup_page(*fault_vpage, thread_current());
+
+	if(spt_entry->has_loaded)
+		return;
+	//load from file
+	if(spt_entry->type == IN_FILE)
+		{
+			*kpage = obtain_frame(*fault_vpage, spt_entry->zero_page);
+			if (file_read_at (spt_entry->load_file, *kpage, spt_entry->read_bytes, spt_entry->file_ofs) != (int) spt_entry->read_bytes)
+				{
+					free_frame(*kpage);
+					return;
+				}
+			memset (*kpage + spt_entry->read_bytes, 0, (PGSIZE - spt_entry->read_bytes));
+
+			 // Add the page to the process's address space. 
+			if (!install_page (*fault_vpage, *kpage, (!spt_entry->read_only)))
+				{
+					free_frame(*kpage);
+					return;
+				}
+		}
+	//load from swap
+	else if(spt_entry->type == IN_SWAP)
+		{
+			*kpage = swap_in(spt_entry->vaddr, spt_entry->swp);
+			if (!install_page (*fault_vpage, *kpage, (!spt_entry->read_only)))
+				{
+					free_frame(*kpage);
+					return;
+				}
+		}
+	spt_entry->has_loaded = true;
 }

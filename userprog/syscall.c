@@ -477,13 +477,16 @@ bool
 pointer_valid (void *given_addr)
 {
 	// struct page *spt_entry = lookup_page(pg_round_down(given_addr));
+	void *frame;
 
 	if(!(given_addr) || is_kernel_vaddr(given_addr))
 		return false;
 
-	if(!pagedir_get_page(thread_current()->pagedir, given_addr))
-		return false;
-
+	if(!pagedir_get_page(thread_current()->pagedir, given_addr)) {
+		insert_page(pg_round_down(given_addr));
+		// load_file_swap(&given_addr, &frame);
+		// return false;
+	}
 	return true;
 }
 //Ruben stopped driving

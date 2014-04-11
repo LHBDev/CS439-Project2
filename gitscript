@@ -1,4 +1,4 @@
 #!/bin/sh
 git add *
-git commit -m "Progress made"
+git commit -m "Pass syn-write/read-boundary"
 git push -u origin frame_table

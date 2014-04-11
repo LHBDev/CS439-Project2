@@ -9,6 +9,7 @@
 void exception_init (void);
 void exception_print_stats (void);
 
-void stack_growth (void *, void *);
+void stack_growth (void *, void **);
+void load_file_swap (void **, void **);
 
 #endif /* userprog/exception.h */
