@@ -50,7 +50,6 @@ obtain_frame (uint8_t *pt_entry, bool zero_page)
 													 : palloc_get_page(PAL_USER);
 	//Returned frame is null, need to evict
 	if(!palloc_frame)
-		// PANIC ("NOOOOOOO");
 		palloc_frame = evict_frame(zero_page);
 	else
 		{

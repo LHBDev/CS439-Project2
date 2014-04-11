@@ -190,7 +190,7 @@ page_fault (struct intr_frame *f)
 					if(fault_addr >= actual_esp - 32 && 
 						 fault_vpage >= (PHYS_BASE - STACK_LIMIT))
 							stack_growth(fault_vpage, &kpage);
-					else 
+					else
 						exit(-1);
 				}
 			else

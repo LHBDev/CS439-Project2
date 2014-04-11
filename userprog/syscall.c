@@ -476,7 +476,7 @@ rw_access_valid (void *buffer)
 bool
 pointer_valid (void *given_addr)
 {
-	// struct page *spt_entry = lookup_page(pg_round_down(given_addr));
+	struct page *spt_entry = lookup_page(pg_round_down(given_addr), thread_current());
 	void *frame;
 
 	if(!(given_addr) || is_kernel_vaddr(given_addr))
@@ -484,8 +484,8 @@ pointer_valid (void *given_addr)
 
 	if(!pagedir_get_page(thread_current()->pagedir, given_addr)) {
 		insert_page(pg_round_down(given_addr));
-		// load_file_swap(&given_addr, &frame);
-		// return false;
+		if(!spt_entry)
+			return false;
 	}
 	return true;
 }

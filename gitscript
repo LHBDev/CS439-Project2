@@ -1,4 +1,4 @@
 #!/bin/sh
 git add *
-git commit -m "Pass syn-write/read-boundary"
+git commit -m "6 tests failing"
 git push -u origin frame_table
