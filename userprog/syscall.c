@@ -442,22 +442,21 @@ bool
 esp_valid (void *esp)
 {
 	struct page *spt_entry;
-	void *fault_vpage, *kpage;
+	void *fault_vpage;
+	struct thread *cur = thread_current();
 
 	if(!esp || is_kernel_vaddr(esp))
 		return false;
 
 	fault_vpage = pg_round_down(esp);
-	spt_entry = lookup_page(fault_vpage, thread_current());
+	spt_entry = lookup_page(fault_vpage, cur);
 
-	if(!spt_entry)
-	{
-		if(fault_vpage >= esp - 32 && 
-			 fault_vpage >= (PHYS_BASE - STACK_LIMIT))
-			stack_growth (fault_vpage, kpage);
-		else
-			return false;
+	if(esp >= esp - 32 &&
+		 fault_vpage >= (PHYS_BASE - STACK_LIMIT)) {
+		// printf("stack alloc\n");
+		stack_growth (fault_vpage);
 	}
+
 	return true;
 }
 
@@ -466,7 +465,7 @@ rw_access_valid (void *buffer)
 {
 	struct page *spt_entry;
 
-	spt_entry = lookup_page(pg_round_down(buffer), thread_current());
+	spt_entry = lookup_page(buffer, thread_current());
 	if(spt_entry->read_only)
 		return false;
 	return true;
@@ -476,16 +475,19 @@ rw_access_valid (void *buffer)
 bool
 pointer_valid (void *given_addr)
 {
-	struct page *spt_entry = lookup_page(pg_round_down(given_addr), thread_current());
+	struct page *spt_entry = lookup_page(given_addr, thread_current());
 	void *frame;
 
 	if(!(given_addr) || is_kernel_vaddr(given_addr))
 		return false;
 
 	if(!pagedir_get_page(thread_current()->pagedir, given_addr)) {
-		insert_page(pg_round_down(given_addr));
-		if(!spt_entry)
-			return false;
+		insert_page(given_addr);
+	
+		// if(!spt_entry) {
+		// 	printf("given Addr %08x\n", pg_round_down(given_addr));
+		// 	return false;
+		// }
 	}
 	return true;
 }

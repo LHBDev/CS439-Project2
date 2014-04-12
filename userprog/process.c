@@ -540,26 +540,29 @@ setup_stack (void **esp)
 	uint8_t word_align = 0;
 	int i, temp_ptr;
 	void *vaddr;
-	struct page *upage_entry;
+	struct page *spt_entry;
 	
 	//Add page table entry and properties and use frame allocator for stack page
 	vaddr = (void *) PHYS_BASE - PGSIZE;
-	upage_entry = insert_page(vaddr);
-	if(!upage_entry)
+	spt_entry = insert_page(vaddr);
+	if(!spt_entry)
 		return false;
 			
-	upage_entry->type = IN_SWAP;
-	upage_entry->has_loaded = true;
-	upage_entry->read_only = false;
+	spt_entry->type = IN_SWAP;
+	spt_entry->has_loaded = true;
+	spt_entry->read_only = false;
 	kpage = obtain_frame(vaddr, true);
+	// printf("7 alloc %08x\n", kpage);
 
 	if (kpage != NULL) 
 		{
 			success = install_page (vaddr, kpage, true);
 			if (success)
 				*esp = PHYS_BASE;
-			else
-				free_frame(vaddr);
+			else {
+				// printf("8 free %08x\n", kpage);
+				free_frame(vaddr, kpage);
+			}
 		}
 
 	//Push the cmd line strings onto the stack

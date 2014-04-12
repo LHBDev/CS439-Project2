@@ -143,6 +143,7 @@ page_fault (struct intr_frame *f)
 	void *actual_esp;
 	void *kpage;
 	struct page *spt_entry;
+	struct thread *cur = thread_current();
 
 	/* Obtain faulting address, the virtual address that was
 		 accessed to cause the fault.  It may point to code or to
@@ -177,109 +178,88 @@ page_fault (struct intr_frame *f)
 	if(not_present)
 		{
 			fault_vpage = pg_round_down(fault_addr);
-			spt_entry = lookup_page(fault_vpage, thread_current());
+			spt_entry = lookup_page(fault_vpage, cur);
 			//spt does not contain this page, illegal access or stack growth?
 			if(!spt_entry)
 				{
 					if(!user)
-						actual_esp = thread_current()->user_esp;
+						actual_esp = cur->user_esp;
 					else
 						actual_esp = f->esp;
 					
 					//Check if we need to allow stack growth
-					if(fault_addr >= actual_esp - 32 && 
+					if(fault_addr >= actual_esp - 32 &&
 						 fault_vpage >= (PHYS_BASE - STACK_LIMIT))
-							stack_growth(fault_vpage, &kpage);
+							stack_growth(fault_vpage);
 					else
 						exit(-1);
 				}
 			else
 				{
-					load_file_swap(&fault_vpage, &kpage);
-					// if(spt_entry->has_loaded)
-					// 	return;
-					// //load from file
-					// if(spt_entry->type == IN_FILE)
-					// 	{
-					// 		kpage = obtain_frame(fault_vpage, spt_entry->zero_page);
-					// 		if (file_read_at (spt_entry->load_file, kpage, spt_entry->read_bytes, spt_entry->file_ofs) != (int) spt_entry->read_bytes)
-					// 			{
-					// 				free_frame(kpage);
-					// 				return;
-					// 			}
-					// 		memset (kpage + spt_entry->read_bytes, 0, (PGSIZE - spt_entry->read_bytes));
-
-					// 		 // Add the page to the process's address space. 
-					// 		if (!install_page (fault_vpage, kpage, (!spt_entry->read_only)))
-					// 			{
-					// 				free_frame(kpage);
-					// 				return;
-					// 			}
-					// 	}
-					// //load from swap
-					// else if(spt_entry->type == IN_SWAP)
-					// 	{
-					// 		kpage = swap_in(spt_entry->vaddr, spt_entry->swp);
-					// 		if (!install_page (fault_vpage, kpage, (!spt_entry->read_only)))
-					// 			{
-					// 				free_frame(kpage);
-					// 				return;
-					// 			}
-					// 	}
-					// spt_entry->has_loaded = true;
+					load_file_swap(fault_vpage);
 				}
 		}
 }
 
 void
-stack_growth (void *fault_vpage, void **kpage)
+stack_growth (void *fault_vpage)
 {
 	struct page *spt_entry;
+	void *kpage;
 
 	spt_entry = insert_page(fault_vpage);
 	spt_entry->type = IN_SWAP;
 	spt_entry->has_loaded = true;
 	spt_entry->read_only = false;
 
-	*kpage = obtain_frame(fault_vpage, true);
+	kpage = obtain_frame(fault_vpage, true);
+	// printf("1 alloc %08x\n", kpage);
 
-	if (*kpage) 
-		if (!install_page (fault_vpage, *kpage, true))
-			free_frame(fault_vpage);
+	if (kpage)
+		if (!install_page (fault_vpage, kpage, true)) {
+			// printf("2 free %08x\n", kpage);
+			free_frame(fault_vpage, kpage);
+		}
 }
 
 void
-load_file_swap (void **fault_vpage, void **kpage)
+load_file_swap (void *fault_vpage)
 {
-	struct page *spt_entry = lookup_page(*fault_vpage, thread_current());
+	struct page *spt_entry = lookup_page(fault_vpage, thread_current());
+	void *kpage;
 
 	if(spt_entry->has_loaded)
 		return;
 	//load from file
 	if(spt_entry->type == IN_FILE)
 		{
-			*kpage = obtain_frame(*fault_vpage, spt_entry->zero_page);
-			if (file_read_at (spt_entry->load_file, *kpage, spt_entry->read_bytes, spt_entry->file_ofs) != (int) spt_entry->read_bytes)
+			kpage = obtain_frame(fault_vpage, spt_entry->zero_page);
+			// printf("3 alloc %08x\n", kpage);
+			file_seek (spt_entry->load_file, spt_entry->file_ofs);
+			if (file_read(spt_entry->load_file, kpage, spt_entry->read_bytes) != (int) spt_entry->read_bytes)
 				{
-					free_frame(*kpage);
+					// printf("4 free %08x\n", kpage);
+					free_frame(fault_vpage, kpage);
 					return;
 				}
-			memset (*kpage + spt_entry->read_bytes, 0, (PGSIZE - spt_entry->read_bytes));
+			memset (kpage + spt_entry->read_bytes, 0, (PGSIZE - spt_entry->read_bytes));
 
 			 // Add the page to the process's address space. 
-			if (!install_page (*fault_vpage, *kpage, (!spt_entry->read_only)))
+			if (!install_page (fault_vpage, kpage, (!spt_entry->read_only)))
 				{
-					free_frame(*kpage);
+					// printf("5 free %08x\n", kpage);
+					free_frame(fault_vpage, kpage);
 					return;
 				}
 		}
 	//load from swap
 	else if(spt_entry->type == IN_SWAP)
 		{
-			*kpage = swap_in(spt_entry->vaddr, spt_entry->swp);
-			if (!install_page (*fault_vpage, *kpage, (!spt_entry->read_only)))
+			kpage = swap_in(spt_entry->vaddr, spt_entry->swp);
+			if (!install_page (fault_vpage, kpage, (!spt_entry->read_only)))
 				{
-					free_frame(*kpage);
+					// printf("6 free %08x\n", kpage);
+					free_frame(fault_vpage, kpage);
 					return;
 				}
 		}

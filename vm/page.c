@@ -4,6 +4,8 @@
 #include "threads/thread.h"
 #include "threads/synch.h"
 #include "threads/malloc.h"
+#include "threads/vaddr.h"
+#include "userprog/pagedir.h"
 
 //NOTE: The following hash functions are adapted from the hash
 //table example in the pintos document sheet (Section A.8.5)
@@ -58,7 +60,8 @@ insert_page (void *virt_address)
 	struct thread *cur = thread_current();
 
 	p = malloc(sizeof(struct page));
-	p->vaddr = virt_address;
+	p->vaddr = pg_round_down(virt_address);
+	// printf("%08x\n", p->vaddr);
 	hash_insert(&cur->sup_table, &p->hash_elem);
 
 	return p;
@@ -68,8 +71,13 @@ void
 free_page (struct page *p)
 {
 	struct thread *cur = thread_current();
+	// void *frame_addr = lookup_frame(p->vaddr)->frame_addr;
 
-	hash_delete (&cur->sup_table, &p->hash_elem);
+	if(p->has_loaded) {
+		// free_frame(p->vaddr);
+		// printf("10 free %08x\n", pagedir_get_page(cur->pagedir, p->vaddr));
+		// pagedir_clear_page(cur->pagedir, p->vaddr);
+	}
 	free(p);
 }
 
@@ -84,7 +92,7 @@ lookup_page (void *virt_address, struct thread *owner)
 	struct page lookup;
 	struct hash_elem *e;
 
-	lookup.vaddr = virt_address;
+	lookup.vaddr = pg_round_down(virt_address);
 	e = hash_find(&cur->sup_table, &lookup.hash_elem);
 	return e ? hash_entry(e, struct page, hash_elem) : NULL;
 }

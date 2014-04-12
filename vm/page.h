@@ -24,9 +24,7 @@ struct page
 	struct file *load_file;
 	off_t file_ofs;
 	uint32_t read_bytes;
-
 	int swp;
-
 	bool read_only;
 	bool has_loaded;
 	bool zero_page;

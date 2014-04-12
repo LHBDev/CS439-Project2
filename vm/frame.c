@@ -57,6 +57,7 @@ obtain_frame (uint8_t *pt_entry, bool zero_page)
 			f = malloc(sizeof(struct frame));
 			f->owner = thread_current();
 			f->pte = pt_entry;
+			f->frame_addr = palloc_frame;
 			hash_insert(&frame_table, &f->hash_elem);
 			lock_release(&ft_lock);
 		}
@@ -65,7 +66,7 @@ obtain_frame (uint8_t *pt_entry, bool zero_page)
 }
 
 void
-free_frame (uint8_t *pt_entry)
+free_frame (uint8_t *pt_entry, void *frame_addr)
 {
 	struct frame *target;
 
@@ -73,9 +74,12 @@ free_frame (uint8_t *pt_entry)
 	target = lookup_frame(pt_entry);
 	if(target)
 		{
+			// frame_addr = target->frame_addr;
+			// printf("Free: %08x\n", (unsigned int) pt_entry);
+			// printf("frame_addr %08x\n", frame_addr);
 			hash_delete(&frame_table, &target->hash_elem);
 			free(target);
-			palloc_free_page(pt_entry);
+			palloc_free_page(frame_addr);
 		}
 	lock_release(&ft_lock);
 }
