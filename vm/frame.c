@@ -9,9 +9,14 @@
 
 //Global Vars
 struct hash frame_table;
-struct lock ft_lock;
-struct hash_elem *hand;
 
+//Header code and above code driven by both Ruben and Siva
+
+//P3 Added Code: (This hash code is slightly adapted from the from the hash
+//table example in the pintos document sheet (Section A.8.5)).
+//Hash functions for our frame table.
+
+//Siva started driving
 /* Returns a hash value for frame p. */
 unsigned
 frame_hash (const struct hash_elem *f_, void *aux UNUSED)
@@ -31,42 +36,57 @@ frame_less (const struct hash_elem *a_, const struct hash_elem *b_,
 	return a->pte < b->pte;
 }
 
+//Initialize the hash table and the lock
 void
 frame_init (void)
 {
 	hash_init(&frame_table, frame_hash, frame_less, NULL);
 	lock_init(&ft_lock);
-	hand = NULL;
 }
+//Siva stopped driving
 
-//combine allocing of frames and getting a frame
+//P3 Added code; Method first tries to palloc a page from memory and 
+//if it's a valid page, we add a frame table entry corresponding to 
+//that page. Otherwise, we evict a page and then add the entry. We hash 
+//the frame table entry based on the virt. addr. of the corresponding 
+//page and the zero-page flag indicates if we have to zero out the palloc.
+
+//Ruben and Siva started driving
 void *
-obtain_frame (uint8_t *pt_entry, bool zero_page)
+obtain_frame (void *pt_entry, bool zero_page)
 {
 	struct frame *f;
 	void *palloc_frame;
 
 	palloc_frame = zero_page ? palloc_get_page(PAL_USER | PAL_ZERO)
 													 : palloc_get_page(PAL_USER);
-	//Returned frame is null, need to evict
+
+	//Returned frame is null, need to evict from memory
 	if(!palloc_frame)
 		palloc_frame = evict_frame(zero_page);
-	else
-		{
-			lock_acquire(&ft_lock);
-			f = malloc(sizeof(struct frame));
-			f->owner = thread_current();
-			f->pte = pt_entry;
-			f->frame_addr = palloc_frame;
-			hash_insert(&frame_table, &f->hash_elem);
-			lock_release(&ft_lock);
-		}
+	else {
+		lock_acquire(&ft_lock);
+		f = malloc(sizeof(struct frame));
+		f->owner = thread_current();
+		f->pte = pt_entry;
+		f->frame_addr = palloc_frame;
+		// f->pinned = true;
+		hash_insert(&frame_table, &f->hash_elem);
+		lock_release(&ft_lock);
+	}
 
 	return palloc_frame;
 }
+//Ruben and Siva stopped driving
 
+//P3 Added Code - To free a frame, we first hash into the frame entry with
+//the pt_entry key and delete that entry from the frame table (freeing the
+//struct as well). Also, we free the corresponding palloced page as referred
+//by frame_addr.
+
+//Ruben started driving
 void
-free_frame (uint8_t *pt_entry, void *frame_addr)
+free_frame (void *pt_entry, void *frame_addr)
 {
 	struct frame *target;
 
@@ -74,19 +94,20 @@ free_frame (uint8_t *pt_entry, void *frame_addr)
 	target = lookup_frame(pt_entry);
 	if(target)
 		{
-			// frame_addr = target->frame_addr;
-			// printf("Free: %08x\n", (unsigned int) pt_entry);
-			// printf("frame_addr %08x\n", frame_addr);
 			hash_delete(&frame_table, &target->hash_elem);
 			free(target);
 			palloc_free_page(frame_addr);
 		}
 	lock_release(&ft_lock);
 }
+//Ruben stopped driving
 
-//lookup a frame, just find something empty (null pointer/bits)
+//P3 Added Code: With the key *pte, we lookup the corresponding hash
+//entry and return the pointer. (Code adapted from hash example)
+
+//Siva started driving
 struct frame *
-lookup_frame (uint8_t *pte)
+lookup_frame (void *pte)
 {
 	struct frame lookup;
 	struct hash_elem *e;
@@ -95,7 +116,13 @@ lookup_frame (uint8_t *pte)
 	e = hash_find(&frame_table, &lookup.hash_elem);
 	return e ? hash_entry(e, struct frame, hash_elem) : NULL;
 }
+//Siva stopped driving
 
+//TODO ADD MORE USEFUL EXPLANATION!
+//P3 Added Code - We iterate through the frame table and once
+//we encounter a frame we simply evict it.
+
+//Ruben and Siva started driving
 void *
 evict_frame (bool zero_page)
 {
@@ -104,52 +131,25 @@ evict_frame (bool zero_page)
   struct page *spt_entry;
   void *vpage = NULL, *palloc_frame;
 
-  if(hand)
-    it.elem = hand;
-  else
-    hash_first(&it, &frame_table);
-
   lock_acquire(&ft_lock);
-  while(!vpage)
-  {
-    f = hash_entry(hash_cur(&it), struct frame, hash_elem);
-    spt_entry = lookup_page(f->pte, f->owner);
+  hash_first(&it, &frame_table);
+  while (hash_next (&it))
+    {
+      f = hash_entry (hash_cur (&it), struct frame, hash_elem);
+      spt_entry = lookup_page(f->pte, f->owner);
 
-    if(!pagedir_is_accessed(f->owner->pagedir, &f->pte))
-    	{
-        if(!pagedir_is_dirty(f->owner->pagedir, &f->pte))
-	        {
-	          if(f->remember_dirty)
-	            swap_out(f->pte);
+      palloc_frame = f->frame_addr;
 
-	          vpage = &f->pte;
-	          spt_entry->has_loaded = false;
-	          spt_entry->type = IN_SWAP;
-	          f->remember_dirty = false;
+      if(!f->pinned) {
+	      swap_out(f->pte);
+	      spt_entry->has_loaded = false;
+		    spt_entry->type = IN_SWAP;
+	     	break;
+	    }
+    }
 
-	          pagedir_clear_page(f->owner->pagedir, &f->pte);
-	          palloc_free_page(&f->pte);
-	          palloc_frame = zero_page ? palloc_get_page(PAL_USER | PAL_ZERO)
-	                    							 : palloc_get_page(PAL_USER);
-	          lock_release(&ft_lock);
-	          return palloc_frame;
-	        }
-        else
-	        {
-	          pagedir_set_dirty(f->owner->pagedir, &f->pte, false);
-	          f->remember_dirty = true;
-	        }
-   	 }
-    else
-    	{
-      	pagedir_set_accessed(f->owner->pagedir, &f->pte, false);
-    	}
-    	
-    hand = hash_cur(&it);
-    if(!hash_next(&it))
-      hash_first(&it, &frame_table);
-  }
+  lock_release(&ft_lock);
 
-  NOT_REACHED();
+  return palloc_frame;
 }
-
+//Ruben and Siva stopped driving

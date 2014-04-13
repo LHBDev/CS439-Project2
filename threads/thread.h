@@ -126,11 +126,11 @@ struct thread
 		struct thread *parent;              /* Pointer to the child's parent */
 		struct file *file_list[MAX_FILES];  /* List of files that a thread has */
 		struct file *exec_file;				/* Exec file that thread is running */
-		//Siva and Ruben stopped driving
 
 		//Project 3 Code
-		struct hash sup_table;
-		void *user_esp;
+		struct hash sup_table;				/* Sup. page table for each thread */
+		void *user_esp;						/* The current val for esp */
+		//Siva and Ruben stopped driving
 	};
 
 /* If false (default), use round-robin scheduler.

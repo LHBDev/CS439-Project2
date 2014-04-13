@@ -140,10 +140,10 @@ page_fault (struct intr_frame *f)
 
 	//Added variables
 	void *fault_vpage; /* Virtual page of the fault address. */
-	void *actual_esp;
-	void *kpage;
-	struct page *spt_entry;
-	struct thread *cur = thread_current();
+	void *actual_esp;  /* The appropriate esp for the user process. */
+	struct page *spt_entry; /* Sup. table entry for the fault addr. */
+	struct thread *cur = thread_current();  /* The currently running thread */
+	bool get_lock = false;
 
 	/* Obtain faulting address, the virtual address that was
 		 accessed to cause the fault.  It may point to code or to
@@ -167,14 +167,22 @@ page_fault (struct intr_frame *f)
 	user = (f->error_code & PF_U) != 0;
 
 	//Ruben started driving
-	if(!not_present)
+	if(!not_present || is_kernel_vaddr(fault_addr) || !fault_addr)
 		exit(-1);
 	//Ruben stopped driving
 
-	if(is_kernel_vaddr(fault_addr) || !fault_addr)
-		exit(-1);
+	//P3 Added Code: Code only considers faulting in not_present pages.
+	//We first lookup the sup. table entry for the faulting page and if
+	//it is not present, we evaluate a stack heuristic on the fault addr
+	//to see if we need to grow the stack and o/w we exit. If the entry is
+	//present we load the page from either file or swap.
 
-	//Page fault handler
+	//Siva started driving
+	if(lock_held_by_current_thread (&file_lock)) {
+		get_lock = true;
+		lock_release(&file_lock);
+	}
+
 	if(not_present)
 		{
 			fault_vpage = pg_round_down(fault_addr);
@@ -182,25 +190,37 @@ page_fault (struct intr_frame *f)
 			//spt does not contain this page, illegal access or stack growth?
 			if(!spt_entry)
 				{
+					//Obtain current value of user program's stack pointer
 					if(!user)
 						actual_esp = cur->user_esp;
 					else
 						actual_esp = f->esp;
 					
-					//Check if we need to allow stack growth
+					//Check if we need to allow stack growth (Stack heuristic)
 					if(fault_addr >= actual_esp - 32 &&
 						 fault_vpage >= (PHYS_BASE - STACK_LIMIT))
 							stack_growth(fault_vpage);
 					else
 						exit(-1);
 				}
+			//Siva stopped driving
+			//Ruben started driving
 			else
 				{
 					load_file_swap(fault_vpage);
 				}
 		}
+
+	if(get_lock)
+		lock_acquire(&file_lock);
+	//Ruben stopped driving
+
 }
 
+//P3 Added code: We record the new page's information in
+//the sup. table and then we obtain a frame and install it.
+
+//Siva started driving
 void
 stack_growth (void *fault_vpage)
 {
@@ -213,32 +233,37 @@ stack_growth (void *fault_vpage)
 	spt_entry->read_only = false;
 
 	kpage = obtain_frame(fault_vpage, true);
-	// printf("1 alloc %08x\n", kpage);
 
 	if (kpage)
-		if (!install_page (fault_vpage, kpage, true)) {
-			// printf("2 free %08x\n", kpage);
+		if (!install_page (fault_vpage, kpage, true))
 			free_frame(fault_vpage, kpage);
-		}
+		
 }
+//Siva stopped driving
 
+//P3 Added code: We identify the page location from the sup. table and
+//we respectively load the page from that source. If the page is in the
+//swap, we simply swap in the page and otherwise, we read from the file and
+//transfer the data onto the page.
+
+//Ruben started driving
 void
 load_file_swap (void *fault_vpage)
 {
 	struct page *spt_entry = lookup_page(fault_vpage, thread_current());
 	void *kpage;
 
+	//If it has loaded, do not do it again!
 	if(spt_entry->has_loaded)
 		return;
-	//load from file
+
+	//Load from file
 	if(spt_entry->type == IN_FILE)
 		{
 			kpage = obtain_frame(fault_vpage, spt_entry->zero_page);
-			// printf("3 alloc %08x\n", kpage);
 			file_seek (spt_entry->load_file, spt_entry->file_ofs);
 			if (file_read(spt_entry->load_file, kpage, spt_entry->read_bytes) != (int) spt_entry->read_bytes)
 				{
-					// printf("4 free %08x\n", kpage);
 					free_frame(fault_vpage, kpage);
 					return;
 				}
@@ -247,21 +272,21 @@ load_file_swap (void *fault_vpage)
 			 // Add the page to the process's address space. 
 			if (!install_page (fault_vpage, kpage, (!spt_entry->read_only)))
 				{
-					// printf("5 free %08x\n", kpage);
 					free_frame(fault_vpage, kpage);
 					return;
 				}
 		}
-	//load from swap
+	//Load from swap
 	else if(spt_entry->type == IN_SWAP)
 		{
 			kpage = swap_in(spt_entry->vaddr, spt_entry->swp);
 			if (!install_page (fault_vpage, kpage, (!spt_entry->read_only)))
 				{
-					// printf("6 free %08x\n", kpage);
 					free_frame(fault_vpage, kpage);
 					return;
 				}
 		}
+
 	spt_entry->has_loaded = true;
 }
+//Ruben stopped driving

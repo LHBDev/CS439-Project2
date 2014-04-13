@@ -497,7 +497,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 			size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 			size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-			// Add page table entry and properties
+			//P3 Added Code: Instead of actually loading the process, we
+			//just add an entry to the supplemental page table, with the necessary
+			//information
+			
+			//Siva started driving
 			upage_entry = insert_page(upage);
 			if(!upage_entry)
 				return false;
@@ -513,6 +517,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 			upage_entry->read_only = !writable;
 
 			ofs += page_read_bytes;
+			//Siva stopped driving
 
 			/* Advance. */
 			read_bytes -= page_read_bytes;
@@ -524,7 +529,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 /* Create a minimal stack by mapping a zeroed page at the top of
 	 user virtual memory. */
-/*Added code comments: Added code simply pertaining to the 
+/*Added code comments (Project 2): Added code simply pertaining to the 
 	guidelines of setting up the stack. Our code does not keep
 	a copy of the esp variable though, we directly use it. ECC code
 	added after each stack push to make sure that contents are within
@@ -542,7 +547,9 @@ setup_stack (void **esp)
 	void *vaddr;
 	struct page *spt_entry;
 	
-	//Add page table entry and properties and use frame allocator for stack page
+	//P3 Added Code - When we load the stack page, we make sure to record
+	//the corresponding sup table entry
+	//Ruben started driving
 	vaddr = (void *) PHYS_BASE - PGSIZE;
 	spt_entry = insert_page(vaddr);
 	if(!spt_entry)
@@ -552,18 +559,16 @@ setup_stack (void **esp)
 	spt_entry->has_loaded = true;
 	spt_entry->read_only = false;
 	kpage = obtain_frame(vaddr, true);
-	// printf("7 alloc %08x\n", kpage);
 
 	if (kpage != NULL) 
 		{
 			success = install_page (vaddr, kpage, true);
 			if (success)
 				*esp = PHYS_BASE;
-			else {
-				// printf("8 free %08x\n", kpage);
+			else
 				free_frame(vaddr, kpage);
-			}
 		}
+	//Ruben stopped driving
 
 	//Push the cmd line strings onto the stack
 	for(i = argc - 1; i >= 0; i--)

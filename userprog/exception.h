@@ -9,6 +9,7 @@
 void exception_init (void);
 void exception_print_stats (void);
 
+//These load methods will be used in other files
 void stack_growth (void *);
 void load_file_swap (void *);
 
