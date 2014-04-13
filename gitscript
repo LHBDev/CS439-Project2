@@ -1,4 +1,4 @@
 #!/bin/sh
 git add *
 git commit -m "4 tests failing"
-git push -u origin emergency_branch
+git push -u origin rub_branch
