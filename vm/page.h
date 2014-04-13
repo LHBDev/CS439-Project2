@@ -3,8 +3,6 @@
 #include <stdint.h>
 #include "filesys/file.h"
 #include "threads/thread.h"
-//Put Desired methods, put desired includes, maybe some struct definitions
-//such
 
 /* Show what type the page is */
 enum page_type
@@ -13,14 +11,11 @@ enum page_type
 	IN_SWAP
 };
 
-//Following struct definition slightly adapted from the pintos
-//hash table example (Section A.8.5)
+//A sup. table entry. Item descriptions in Siva's design doc
 struct page
 {
 	void *vaddr;
 	enum page_type type;
-	//should probably include booleans to indicate statuses of pages,
-	//dirty, reference, pinned etc.
 	struct file *load_file;
 	off_t file_ofs;
 	uint32_t read_bytes;
@@ -40,6 +35,6 @@ void page_action_func (struct hash_elem *, void * UNUSED);
 /*Sup Table functions*/
 void sup_table_init (struct hash *);
 void sup_table_free (void);
-struct page *lookup_page (void *, struct thread *);
-struct page *insert_page (void *);
+struct page * lookup_page (void *, struct thread *);
+struct page * insert_page (void *);
 void free_page (struct page *);

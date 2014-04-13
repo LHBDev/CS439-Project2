@@ -7,9 +7,13 @@
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 
-//NOTE: The following hash functions are adapted from the hash
-//table example in the pintos document sheet (Section A.8.5)
+//Header code and above code driven by both Ruben and Siva
 
+//P3 Added Code: (This hash code is slightly adapted from the from the hash
+//table example in the pintos document sheet (Section A.8.5)).
+//Hash functions for our sup. page table.
+
+//Ruben started driving
 /* Returns a hash value for spte p. */
 unsigned
 page_hash (const struct hash_elem *p_, void *aux UNUSED)
@@ -29,8 +33,7 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_,
 	return a->vaddr < b->vaddr;
 }
 
-//END NOTE
-
+/* Destructor function that frees sup. entries */
 void
 page_action_func (struct hash_elem *a_, void *aux UNUSED)
 {
@@ -45,6 +48,7 @@ sup_table_init (struct hash *sup_table)
 	hash_init(sup_table, page_hash, page_less, NULL);
 }
 
+//P3 Added code - A destructor function that frees the sup. page table
 void
 sup_table_free (void)
 {
@@ -52,7 +56,13 @@ sup_table_free (void)
 
 	hash_destroy(&cur->sup_table, page_action_func);
 }
+//Ruben stopped driving
 
+//P3 Added Code - Simply allocates an entry for the sup. page table and
+//inserts into the table. Other properties are added beside where this 
+//function is called
+
+//Siva started driving
 struct page *
 insert_page (void *virt_address)
 {
@@ -61,12 +71,13 @@ insert_page (void *virt_address)
 
 	p = malloc(sizeof(struct page));
 	p->vaddr = pg_round_down(virt_address);
-	// printf("%08x\n", p->vaddr);
 	hash_insert(&cur->sup_table, &p->hash_elem);
 
 	return p;
 }
 
+//P3 Added Code - Called by the destructor hash function above. This simply
+//frees the struct allocated to the sup. page table
 void
 free_page (struct page *p)
 {
@@ -74,15 +85,22 @@ free_page (struct page *p)
 	// void *frame_addr = lookup_frame(p->vaddr)->frame_addr;
 
 	if(p->has_loaded) {
+		// free_frame(p->vaddr, pagedir_get_page(cur->pagedir, p->vaddr));
+
 		// free_frame(p->vaddr);
-		// printf("10 free %08x\n", pagedir_get_page(cur->pagedir, p->vaddr));
-		// pagedir_clear_page(cur->pagedir, p->vaddr);
+		pagedir_clear_page(cur->pagedir, p->vaddr);
 	}
 	free(p);
 }
+//Siva stopped driving
 
-//NOTE: The following function is adapted from the hash
-//table example in the pintos document sheet (Section A.8.5)
+
+
+//P3 Added Code - lookup the sup. table entry corresponding to the key
+//virt_address. The owner specifies which thread's sup. table to look in.
+//(Code adapted from hash example)
+
+//Ruben started driving
 
 /* Locate the page that faulted */
 struct page *
@@ -96,5 +114,4 @@ lookup_page (void *virt_address, struct thread *owner)
 	e = hash_find(&cur->sup_table, &lookup.hash_elem);
 	return e ? hash_entry(e, struct page, hash_elem) : NULL;
 }
-
-//END NOTE
+//Ruben stopped driving

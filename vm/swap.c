@@ -9,6 +9,12 @@ struct bitmap *swap_table;
 struct block *swap_block;
 struct lock swap_lock;
 
+//Header code and above code driven by both Ruben and Siva
+
+//P3 Added Code - Initialize the swap block, the swap table
+//and the swap lock
+
+//Siva started driving
 void
 swap_init (void)
 {
@@ -16,9 +22,15 @@ swap_init (void)
 	swap_table = bitmap_create(block_size(swap_block));
 	lock_init(&swap_lock);
 }
+//Siva stopped driving
 
+//P3 Added Code - Find the first available swap index in the swap table
+//and write to that spot in the table. The write buffer is simply obtained
+//from the frame addr stored in the frame entry.
+
+//Ruben started driving
 void
-swap_out (uint8_t *vaddr)
+swap_out (void *vaddr)
 {
 	int i, swp_ind;
 	struct frame *frame = lookup_frame(vaddr);
@@ -33,20 +45,26 @@ swap_out (uint8_t *vaddr)
 		block_write(swap_block, swp_ind + i, frame_addr + (BLOCK_SECTOR_SIZE * i));
 	lock_release(&swap_lock);
 }
+//Ruben stopped driving
 
+//P3 Added Code - Given the swap index, we read from that location of swap
+//and put the data into the buffer (indicated by kpage)
+
+//Siva started driving
 void *
-swap_in (uint8_t *vaddr, int swp_ind)
+swap_in (void *vaddr, int swp_ind)
 {
 	void *kpage;
 	int i;
 
 	lock_acquire(&swap_lock);
 	kpage = obtain_frame(vaddr, true);
-	// printf("9 alloc %08x\n", kpage);
 	bitmap_reset(swap_table, swp_ind);
 	for(i = 0; i < PGSIZE / BLOCK_SECTOR_SIZE; i++)
 		block_read(swap_block, swp_ind + i, kpage + (BLOCK_SECTOR_SIZE * i));
+	bitmap_set_multiple (swap_table, swp_ind, PGSIZE / BLOCK_SECTOR_SIZE, false);
 	lock_release(&swap_lock);
 
 	return kpage;
 }
+//Siva stopped driving
