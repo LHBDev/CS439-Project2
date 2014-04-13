@@ -329,7 +329,7 @@ read (int fd, void *buffer, unsigned size)
 			if(!fd_file)
 				bytes_read = -1;
 			else{
-				stack_growth(buffer);
+				stack_growth(pg_round_down(buffer));
 				bytes_read = file_read(fd_file, buffer, size);
 			}
 		}
