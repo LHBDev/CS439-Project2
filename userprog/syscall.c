@@ -478,7 +478,7 @@ bool
 pointer_valid (void *given_addr)
 {
 	struct page *spt_entry = lookup_page(given_addr, thread_current());
-	void *frame;
+	struct page *fault_vpage = pg_round_down(given_addr);
 
 	if(!(given_addr) || is_kernel_vaddr(given_addr))
 		return false;
@@ -489,7 +489,7 @@ pointer_valid (void *given_addr)
 		if(!spt_entry) {
 			if(given_addr >= (thread_current()->user_esp - 32) &&
                fault_vpage >= (PHYS_BASE - STACK_LIMIT)){
-				stack_growth(pg_round_down(given_addr));
+				stack_growth(fault_vpage);
 				return true;
 			}
 			return false;
