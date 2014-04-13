@@ -328,8 +328,10 @@ read (int fd, void *buffer, unsigned size)
 			fd_file = fd_to_file(fd);
 			if(!fd_file)
 				bytes_read = -1;
-			else
+			else{
+				stack_growth(buffer);
 				bytes_read = file_read(fd_file, buffer, size);
+			}
 		}
 	lock_release(&file_lock);
 
@@ -484,10 +486,10 @@ pointer_valid (void *given_addr)
 	if(!pagedir_get_page(thread_current()->pagedir, given_addr)) {
 		insert_page(given_addr);
 	
-		// if(!spt_entry) {
-		// 	printf("given Addr %08x\n", pg_round_down(given_addr));
-		// 	return false;
-		// }
+		if(!spt_entry) {
+			// printf("given Addr %08x\n", pg_round_down(given_addr));
+			return false;
+		}
 	}
 	return true;
 }
