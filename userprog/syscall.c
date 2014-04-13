@@ -329,7 +329,7 @@ read (int fd, void *buffer, unsigned size)
 			if(!fd_file)
 				bytes_read = -1;
 			else{
-				stack_growth(pg_round_down(buffer));
+				// stack_growth(pg_round_down(buffer));
 				bytes_read = file_read(fd_file, buffer, size);
 			}
 		}
@@ -487,7 +487,11 @@ pointer_valid (void *given_addr)
 		insert_page(given_addr);
 	
 		if(!spt_entry) {
-			// printf("given Addr %08x\n", pg_round_down(given_addr));
+			if(given_addr >= (thread_current()->user_esp - 32) &&
+               fault_vpage >= (PHYS_BASE - STACK_LIMIT)){
+				stack_growth(pg_round_down(given_addr));
+				return true;
+			}
 			return false;
 		}
 	}
