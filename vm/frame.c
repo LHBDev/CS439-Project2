@@ -6,6 +6,7 @@
 #include "threads/thread.h"
 #include "threads/malloc.h"
 #include "userprog/pagedir.h"
+#include <stdio.h>
 
 //Global Vars
 struct hash frame_table;
