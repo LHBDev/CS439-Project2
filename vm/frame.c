@@ -11,6 +11,7 @@
 struct hash frame_table;
 struct lock ft_lock;
 struct hash_elem *hand;
+int i = 0;
 
 /* Returns a hash value for frame p. */
 unsigned
@@ -99,10 +100,11 @@ lookup_frame (uint8_t *pte)
 void *
 evict_frame (bool zero_page)
 {
-	struct hash_iterator it;
+  struct hash_iterator it;
   struct frame *f;
   struct page *spt_entry;
   void *vpage = NULL, *palloc_frame;
+  printf("%d\n", i++);
 
   if(hand)
     it.elem = hand;
