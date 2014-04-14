@@ -76,7 +76,7 @@ free_page (struct page *p)
 	if(p->has_loaded) {
 		// free_frame(p->vaddr);
 		// printf("10 free %08x\n", pagedir_get_page(cur->pagedir, p->vaddr));
-		// pagedir_clear_page(cur->pagedir, p->vaddr);
+		pagedir_clear_page(cur->pagedir, p->vaddr);
 	}
 	free(p);
 }
