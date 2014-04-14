@@ -546,6 +546,7 @@ setup_stack (void **esp)
 	int i, temp_ptr;
 	void *vaddr;
 	struct page *spt_entry;
+	struct frame *f;
 	
 	//P3 Added Code - When we load the stack page, we make sure to record
 	//the corresponding sup table entry
@@ -559,6 +560,8 @@ setup_stack (void **esp)
 	spt_entry->has_loaded = true;
 	spt_entry->read_only = false;
 	kpage = obtain_frame(vaddr, true);
+	f = lookup_frame(vaddr);
+	f->pinned = true;
 
 	if (kpage != NULL) 
 		{

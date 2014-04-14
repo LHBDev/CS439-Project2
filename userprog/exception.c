@@ -225,6 +225,7 @@ void
 stack_growth (void *fault_vpage)
 {
 	struct page *spt_entry;
+	struct frame *f;
 	void *kpage;
 
 	spt_entry = insert_page(fault_vpage);
@@ -233,10 +234,13 @@ stack_growth (void *fault_vpage)
 	spt_entry->read_only = false;
 
 	kpage = obtain_frame(fault_vpage, true);
+	f = lookup_frame(fault_vpage);
 
 	if (kpage)
 		if (!install_page (fault_vpage, kpage, true))
 			free_frame(fault_vpage, kpage);
+
+	f->pinned = false;
 		
 }
 //Siva stopped driving
@@ -251,6 +255,7 @@ void
 load_file_swap (void *fault_vpage)
 {
 	struct page *spt_entry = lookup_page(fault_vpage, thread_current());
+	struct frame *f;
 	void *kpage;
 
 	//If it has loaded, do not do it again!
@@ -286,6 +291,8 @@ load_file_swap (void *fault_vpage)
 					return;
 				}
 		}
+
+	f = lookup_frame(fault_vpage);
 
 	spt_entry->has_loaded = true;
 }

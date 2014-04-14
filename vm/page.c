@@ -77,21 +77,23 @@ insert_page (void *virt_address)
 }
 
 //P3 Added Code - Called by the destructor hash function above. This simply
-//frees the struct allocated to the sup. page table
+//frees the struct allocated to the sup. page table. Also if the frame is
+//still loaded in memory, we should free up the allocated frame and clear
+//its entry from the page table
 void
 free_page (struct page *p)
 {
 	struct thread *cur = thread_current();
+	void *frame_addr = pagedir_get_page(cur->pagedir, p->vaddr);
 
-	if(p->has_loaded) {
-		// free_frame(p->vaddr, pagedir_get_page(cur->pagedir, p->vaddr));
-		pagedir_clear_page(cur->pagedir, p->vaddr);
-	}
+	if(p->has_loaded)
+		{
+			pagedir_clear_page(cur->pagedir, p->vaddr);
+			free_frame(p->vaddr, frame_addr);
+		}
 	free(p);
 }
 //Siva stopped driving
-
-
 
 //P3 Added Code - lookup the sup. table entry corresponding to the key
 //virt_address. The owner specifies which thread's sup. table to look in.

@@ -1,0 +1,203 @@
+3/24, 2:00p - 6:00p Ruben and Siva, 4 hours
+Drive Order and Time Length:
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+
+3/27, 2:00p - 6:00p Ruben and Siva, 4 hours
+Drive Order and Time Length:
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+
+3/28, 2:30p - 5:30p Ruben and Siva, 3 hours
+Drive Order and Time Length:
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+
+4/1, 2:00p - 5:30p Ruben and Siva, 3.5 hours
+Drive Order and Time Length:
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+
+4/3, 2:00p - 6:00p Ruben and Siva, 4 hours
+Drive Order and Time Length:
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+
+4/4, 11:00p - 7:00p Ruben and Siva, 8 hours
+Drive Order and Time Length:
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+
+4/5, 10:00a - 4:00p Ruben and Siva, 6 hours 
+Drive Order and Time Length:
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+
+4/7, 2:00p - 7:00p Ruben and Siva, 5 hours
+Drive Order and Time Length:
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+
+4/8, 1:30p - 7:30p Ruben and Siva, 6 hours
+Drive Order and Time Length:
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+
+4/9, 2:00p - 7:00p Ruben and Siva, 5 hours
+Drive Order and Time Length:
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+
+4/10, 2:00p - 8:00p Ruben and Siva, 6 hours
+Drive Order and Time Length:
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+
+4/11, 12:30p - 8:00p Ruben and Siva, 7.5 hours
+Drive Order and Time Length:
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+
+4/12, 12:00p - 6:00p Ruben and Siva, 6 hours
+Drive Order and Time Length:
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+
+4/13, 10:00a - 10:00p Ruben and Siva, 12 hours
+Drive Order and Time Length:
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+Ruben, 30 mins
+Siva, 30 mins
+
+Total time spent on Proj. 3 - 80 hours

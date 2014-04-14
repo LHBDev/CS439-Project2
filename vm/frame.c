@@ -2,6 +2,7 @@
 #include "swap.h"
 #include "page.h"
 #include "lib/kernel/hash.h"
+#include "lib/random.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/malloc.h"
@@ -64,16 +65,17 @@ obtain_frame (void *pt_entry, bool zero_page)
 	//Returned frame is null, need to evict from memory
 	if(!palloc_frame)
 		palloc_frame = evict_frame(zero_page);
-	else {
-		lock_acquire(&ft_lock);
-		f = malloc(sizeof(struct frame));
-		f->owner = thread_current();
-		f->pte = pt_entry;
-		f->frame_addr = palloc_frame;
-		// f->pinned = true;
-		hash_insert(&frame_table, &f->hash_elem);
-		lock_release(&ft_lock);
-	}
+	else
+		{
+			lock_acquire(&ft_lock);
+			f = malloc(sizeof(struct frame));
+			f->owner = thread_current();
+			f->pte = pt_entry;
+			f->frame_addr = palloc_frame;
+			f->pinned = true;
+			hash_insert(&frame_table, &f->hash_elem);
+			lock_release(&ft_lock);
+		}
 
 	return palloc_frame;
 }
@@ -118,9 +120,9 @@ lookup_frame (void *pte)
 }
 //Siva stopped driving
 
-//TODO ADD MORE USEFUL EXPLANATION!
-//P3 Added Code - We iterate through the frame table and once
-//we encounter a frame we simply evict it.
+//P3 Added Code - Random frame eviction. We generate a random
+//number that is up till 5 and as we evict the page that is 
+//present at the location specified by the random number
 
 //Ruben and Siva started driving
 void *
@@ -130,22 +132,27 @@ evict_frame (bool zero_page)
   struct frame *f;
   struct page *spt_entry;
   void *vpage = NULL, *palloc_frame;
+  int random = random_ulong() % 5, ind = 0;
 
   lock_acquire(&ft_lock);
   hash_first(&it, &frame_table);
   while (hash_next (&it))
     {
-      f = hash_entry (hash_cur (&it), struct frame, hash_elem);
-      spt_entry = lookup_page(f->pte, f->owner);
+    	if(ind++ == random)
+    		{
+		      f = hash_entry (hash_cur (&it), struct frame, hash_elem);
+		      spt_entry = lookup_page(f->pte, f->owner);
 
-      palloc_frame = f->frame_addr;
+		      palloc_frame = f->frame_addr;
 
-      if(!f->pinned) {
-	      swap_out(f->pte);
-	      spt_entry->has_loaded = false;
-		    spt_entry->type = IN_SWAP;
-	     	break;
-	    }
+		      if(!f->pinned)
+		      	{
+				      swap_out(f->pte);
+				      spt_entry->has_loaded = false;
+					    spt_entry->type = IN_SWAP;
+				     	break;
+			    	}
+		  	}
     }
 
   lock_release(&ft_lock);
