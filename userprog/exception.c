@@ -257,7 +257,7 @@ load_file_swap (void *fault_vpage)
 	if(spt_entry->has_loaded)
 		return;
 	kpage = obtain_frame(fault_vpage, spt_entry->zero_page);
-	pin((struct frame *)kpage);
+	// pin((struct frame *)kpage);
 	//Load from file
 	if(spt_entry->type == IN_FILE)
 		{
@@ -289,6 +289,6 @@ load_file_swap (void *fault_vpage)
 		}
 
 	spt_entry->has_loaded = true;
-	unpin((struct frame *)kpage);
+	// unpin((struct frame *)kpage);
 }
 //Ruben stopped driving
