@@ -6,9 +6,12 @@
 #include "threads/thread.h"
 #include "threads/malloc.h"
 #include "userprog/pagedir.h"
+#include <stdio.h>
+
 
 //Global Vars
 struct hash frame_table;
+int i = 0;
 
 //Header code and above code driven by both Ruben and Siva
 
