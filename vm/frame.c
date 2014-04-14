@@ -129,16 +129,19 @@ evict_frame (bool zero_page)
   void *vpage = NULL, *palloc_frame;
   printf("%d\n", i++);
 
-  if(hand)
-    it.elem = hand;
-  else
-    hash_first(&it, &frame_table);
+  // if(hand)
+  //   it.elem = hand;
+  // else
+  //   hash_first(&it, &frame_table);
 
   lock_acquire(&ft_lock);
   while(!vpage)
   {
     f = hash_entry(hash_cur(&it), struct frame, hash_elem);
     spt_entry = lookup_page(f->pte, f->owner);
+
+    if(f->pinned)
+    	continue;
 
     if(!pagedir_is_accessed(f->owner->pagedir, &f->pte))
     	{
@@ -170,7 +173,7 @@ evict_frame (bool zero_page)
       	pagedir_set_accessed(f->owner->pagedir, &f->pte, false);
     	}
     	
-    hand = hash_cur(&it);
+    // hand = hash_cur(&it);
     if(!hash_next(&it))
       hash_first(&it, &frame_table);
   }
