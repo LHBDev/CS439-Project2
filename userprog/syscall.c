@@ -18,14 +18,10 @@
 static void syscall_handler (struct intr_frame *);
 
 /* Helper Functions */
-bool esp_valid (void *);
 bool rw_access_valid (void *);
 bool pointer_valid (void * );
 bool fd_valid (int);
 struct file * fd_to_file (int);
-
-/* Added global variables */
-struct lock file_lock;
 
 void
 syscall_init (void) 
@@ -48,7 +44,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 	thread_current()->user_esp = f->esp;
 	//Checks the validity of the esp location
-	if(!esp_valid(f->esp))
+	if(!pointer_valid(f->esp))
 		exit(-1);
 
 	//Get the system call number
@@ -328,10 +324,8 @@ read (int fd, void *buffer, unsigned size)
 			fd_file = fd_to_file(fd);
 			if(!fd_file)
 				bytes_read = -1;
-			else{
-				// stack_growth(pg_round_down(buffer));
+			else
 				bytes_read = file_read(fd_file, buffer, size);
-			}
 		}
 	lock_release(&file_lock);
 
@@ -438,30 +432,10 @@ close (int fd)
 
 /*Start of helper methods*/
 
-/*Checks the validity of a passed in user address. Can't 
-	trust those foos.*/
-bool
-esp_valid (void *esp)
-{
-	struct page *spt_entry;
-	void *fault_vpage;
-	struct thread *cur = thread_current();
+//P3 Added Code - Checks whether that the rights (writable) of the page
+//is not being violated by the system call
 
-	if(!esp || is_kernel_vaddr(esp))
-		return false;
-
-	fault_vpage = pg_round_down(esp);
-	spt_entry = lookup_page(fault_vpage, cur);
-
-	if(esp >= esp - 32 &&
-		 fault_vpage >= (PHYS_BASE - STACK_LIMIT)) {
-		// printf("stack alloc\n");
-		stack_growth (fault_vpage);
-	}
-
-	return true;
-}
-
+//Siva started driving
 bool
 rw_access_valid (void *buffer)
 {
@@ -472,13 +446,21 @@ rw_access_valid (void *buffer)
 		return false;
 	return true;
 }
+//Siva stopped driving
+
+/*Checks the validity of a passed in user address. Can't 
+	trust those foos.*/
+
+//P3 Added Code - If there isn't a sup. table entry for the
+//given addr., we check the address against the stack heuristic
+//and grow the stack as necessary.
 
 //Ruben started driving
 bool
 pointer_valid (void *given_addr)
 {
 	struct page *spt_entry = lookup_page(given_addr, thread_current());
-	struct page *fault_vpage = pg_round_down(given_addr);
+	void *fault_vpage = pg_round_down(given_addr);
 
 	if(!(given_addr) || is_kernel_vaddr(given_addr))
 		return false;
@@ -488,7 +470,7 @@ pointer_valid (void *given_addr)
 	
 		if(!spt_entry) {
 			if(given_addr >= (thread_current()->user_esp - 32) &&
-               fault_vpage >= (PHYS_BASE - STACK_LIMIT)){
+				 fault_vpage >= (PHYS_BASE - STACK_LIMIT)) {
 				stack_growth(fault_vpage);
 				return true;
 			}
