@@ -149,7 +149,7 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   //Ruben started driving
-  if(not_present || user)
+  if(!not_present || !user)
     exit(-1);
   //Ruben stopped driving
 

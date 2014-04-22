@@ -9,6 +9,7 @@
 #include "threads/vaddr.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
+#include "filesys/inode.h"
 #include "lib/user/syscall.h"
 #include "devices/shutdown.h"
 #include "devices/input.h"
@@ -41,8 +42,6 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
 	int call_num, first_arg, second_arg, third_arg;
-
-	// printf("herer\n");
 
 	//Checks the validity of the esp location
 	if(!pointer_valid(f->esp))
@@ -93,6 +92,22 @@ syscall_handler (struct intr_frame *f UNUSED)
 		{
 			close(first_arg);
 		}
+	else if (call_num == SYS_CHDIR)
+		{
+			f->eax = chdir((const char *) first_arg);
+		}
+	else if (call_num == SYS_MKDIR)
+		{
+			f->eax = mkdir((const char *) first_arg);
+		}
+	else if (call_num == SYS_ISDIR)
+		{
+			f->eax = isdir(first_arg);
+		}
+	else if (call_num == SYS_INUMBER)
+		{
+			f->eax = inumber(first_arg);
+		}
 
 	//Ruben stopped driving
 	//Siva started driving
@@ -110,6 +125,10 @@ syscall_handler (struct intr_frame *f UNUSED)
 	else if (call_num == SYS_SEEK)
 		{
 			seek(first_arg, (unsigned) second_arg);
+		}
+	else if (call_num == SYS_READDIR)
+		{
+			f->eax = readdir(first_arg, (char *) second_arg);
 		}
 
 	//Get 3rd argument and check it's validity
@@ -140,7 +159,10 @@ halt (void)
 
 /*Exit system call - Closes the thread's exec file to reenable
   writing to it and saves the status directly to the child's 
-  parent. Wakes up the waiting parent and prints the proper 
+  parent. We call sema down on exit sema to make the exiting
+  child wait for the parent to start waiting. This prevents
+  premature exiting of the children, a possible race condition.
+  Then, wakes up the waiting parent and prints the proper 
   exit message, if it's a user process.*/
 
 //Siva started driving
@@ -153,9 +175,10 @@ exit (int status)
 	file_close(cur->exec_file);
 	lock_release(&file_lock);	
 
+	sema_down(&cur->exit_sema);
+
 	cur->parent->child_exit_status = status;
 	cur->is_alive = false;
-	// printf("status %d\n", status);
 
 	sema_up(&cur->parent->wait_sema);
 	if(cur->is_user_process)
@@ -164,11 +187,13 @@ exit (int status)
 	thread_exit();
 }
 
-/*Exec system call - NOT YET IMPLEMENTED*/
+/*Exec system call - First checks the validity of the passed
+  in argument and then calls the process execute method. This
+  is done under a lock to prevent perturbing race conditions.
+  Returns the value returned by process_execute(). */
 pid_t
 exec (const char *cmd_line)
 {
-	struct thread *cur = thread_current();;
 	pid_t new_pid;
 
 	if(!pointer_valid((void *) cmd_line))
@@ -422,6 +447,60 @@ close (int fd)
 	cur->file_list[fd] = NULL;
 }
 //Siva stopped driving
+
+//FILESYS ADDED CODE
+bool
+chdir (const char *dir)
+{
+	if(!pointer_valid((void *) dir))
+		exit(-1);
+
+	return false;
+}
+
+bool
+mkdir (const char *dir)
+{
+	if(!pointer_valid((void *) dir))
+		exit(-1);
+
+	return false;
+}
+
+bool
+readdir (int fd, char *name)
+{
+	if(!pointer_valid((void *) name) || !fd_valid(fd))
+		exit(-1);
+
+	return false;
+} 
+
+bool
+isdir (int fd)
+{
+	struct file *fd_file;
+	
+	if(!fd_valid(fd))
+		exit(-1);
+
+	fd_file = fd_to_file(fd);
+	if(!fd_file)
+		return false;
+
+	return inode_is_dir(file_get_inode(fd_file));
+}
+
+int
+inumber (int fd)
+{
+	if(!fd_valid(fd))
+		exit(-1);
+
+	return true;
+}
+
+//END OF FILESYS CODE
 
 /*Start of helper methods*/
 

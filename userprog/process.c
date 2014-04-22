@@ -35,7 +35,11 @@ int argc;										/*Count of how many cmd lne args*/
 /* Added code comments: Simply break up the given cmd line into
    individual strings and then store them in the global argv array.
    Adjust argc as necessary. Glb var driving and local var driving
-   done by Ruben. */
+   done by Ruben. 
+   After the call to thread create, conjure up the child thread by
+   converting the returned tid to a thread struct. Parents wait for
+   the child's load status by calling sema_down and will return
+   the appropriate result. */
 tid_t
 process_execute (const char *file_name) 
 {
@@ -69,10 +73,12 @@ process_execute (const char *file_name)
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 
+	//Siva started driving
+
 	cur = tid_to_thread(tid);
 	if(!cur)
 		return -1;
-	sema_down(&cur->load_sema);
+	sema_down(&thread_current()->load_sema);
 
 	if(!thread_current()->has_loaded_process)
 		tid = -1;
@@ -82,7 +88,10 @@ process_execute (const char *file_name)
 
 /* A thread function that loads a user process and starts it
 	 running. */
-/* Added code comments: */
+/* Added code comments: Child obtains the load status from the
+	 load method call and calls sema up on the waiting parent. 
+	 Initialize the child as a user process and let the parent know
+	 of the load status by directly saving it in the parent thread. */
 static void
 start_process (void *file_name_)
 {
@@ -98,10 +107,12 @@ start_process (void *file_name_)
 	if_.cs = SEL_UCSEG;
 	if_.eflags = FLAG_IF | FLAG_MBS;
 	success = load (file_name, &if_.eip, &if_.esp);
-	//ADDED Code
+	
 	child->is_user_process = true;
 	child->parent->has_loaded_process = success;
-	sema_up(&child->load_sema);
+	sema_up(&child->parent->load_sema);
+
+	//Siva stopped driving
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
@@ -131,7 +142,9 @@ start_process (void *file_name_)
 /*Added code comments: Process wait implemented in terms of the 
 	comment above. We obtain the thread pertaining to the given
 	tid and we make sure the tid referenced thread is a child of
-	the running thread, otherwise returning -1. -1 is also returned
+	the running thread, otherwise returning -1. Then wakes up the
+	child to notify it that the parent is ready for waiting by
+	calling sema up on exit_sema.	-1 is also returned
 	if the tid referenced thread is NULL, is not alive or has already
 	been waited on before. If no errors are to be returned, then the
 	parent waits on the child by calling sema_down and retrieves the
@@ -145,6 +158,9 @@ process_wait (tid_t child_tid)
 
 	cur = thread_current();
 	child = tid_to_thread(child_tid);
+
+	sema_up(&child->exit_sema);
+
 	if(child == NULL)
 		return -1;
 
@@ -171,7 +187,7 @@ process_exit (void)
 {
 	struct thread *cur = thread_current ();
 	uint32_t *pd;
-
+	
 	/* Destroy the current process's page directory and switch back
 		 to the kernel-only page directory. */
 	pd = cur->pagedir;
