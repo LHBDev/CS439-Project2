@@ -569,3 +569,48 @@ fd_to_file (int fd)
 //Siva stopped driving
 
 /*End of helper methods*/
+
+
+/* Subdirectory system calls */
+
+/* Changes working directory of process to dir. Supports absolute and
+	relative paths. Returns true if successful, false otherwise. */
+bool
+chdir (const char *dir)
+{
+
+}
+
+/* Creates the directory named dir, which may be relative or absolute. True
+	if successful, false otherwise. Fails if dir already exists or, if absolute
+	path, any directory in path, other than dir, doesn't exist. */
+bool
+mkdir (const char *dir)
+{
+
+}
+
+/* Reads directory entry frome fd - must represent directory. If successful,
+	stores null-terminated file name in name, must have room for READDIR_MAX_LEN
+	+ 1 bytes and returns true. Returns false if no entries are left in directory. */
+bool
+readdir (int fd, char *name)
+{
+
+}
+
+/* Returns true if fd represents a directory, false otherwise. */
+bool
+isdir (int fd)
+{
+
+}
+
+/* Returns inode number of inode associated with fd. Can be either file or
+	directory */
+int
+inumber (int fd)
+{
+
+}
+
