@@ -13,8 +13,9 @@
 
 struct inode;
 
-//AddedCode
-char * extract_filename (char *);
+//Added Code
+char *extract_filename (char *);
+struct dir *dir_lookup_path (char *);
 
 /* Opening and closing directories. */
 bool dir_create (block_sector_t sector, size_t entry_cnt);

@@ -126,6 +126,9 @@ struct thread
 		struct file *file_list[MAX_FILES];  /* List of files that a thread has */
 		struct file *exec_file;				/* Exec file that thread is running */
 		//Siva and Ruben stopped driving
+
+		//P4: Added Code
+		struct dir *curr_dir;
 	};
 
 /* If false (default), use round-robin scheduler.

@@ -5,6 +5,7 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/thread.h"
 
 /* A directory. */
 struct dir 
@@ -21,6 +22,7 @@ struct dir_entry
     bool in_use;                        /* In use or free? */
   };
 
+//P4 Added Methods
 char *
 extract_filename (char *path_name)
 {
@@ -28,6 +30,43 @@ extract_filename (char *path_name)
   while(*ptr != '\0')
     if(*(ptr++) == '/')
       result = ptr;
+
+  return result;
+}
+
+struct dir *
+dir_lookup_path (char *path_name)
+{
+  struct dir *result;
+  struct inode *temp;
+  char *ptr = path_name;
+  char dir_name[NAME_MAX + 1];
+  int i = 0;
+
+  if(*ptr == '/')
+    result = dir_open_root();
+  else
+    result = thread_current()->curr_dir;
+
+  while(*ptr != '\0') {
+    i = 0;
+    while(*ptr != '/')
+      dir_name[i++] = *(ptr++);
+    dir_name[i] = '\0';
+    ptr++;
+    //open dir here, check '..' and '.' cases
+    if(dir_name[0] == '\0')
+      continue;
+    else if (!strcmp(dir_name, ".")) {
+      continue;
+    } else if (!strcmp(dir_name, "..")) {
+      //get the previous dir, parent pointer?
+    } else {
+      dir_lookup(result, dir_name, &temp);
+      dir_close(result);
+      result = dir_open(temp);
+    }
+  }
 
   return result;
 }

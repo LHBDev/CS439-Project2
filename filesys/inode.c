@@ -416,11 +416,11 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   if (inode->deny_write_cnt)
     return 0;
 
-  lock_acquire(&inode->lock);
+  // lock_acquire(&inode->lock);
   if((int) byte_to_sector(inode, offset+size) == -1)
     if(allocate_sectors(DIV_ROUND_UP(offset+size, BLOCK_SECTOR_SIZE), &inode->data))
       inode->data.length = offset + size;
-  lock_release(&inode->lock);
+  // lock_release(&inode->lock);
 
   while (size > 0) 
     {

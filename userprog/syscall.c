@@ -8,6 +8,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "filesys/file.h"
+#include "filesys/directory.h"
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "lib/user/syscall.h"
@@ -452,10 +453,20 @@ close (int fd)
 bool
 chdir (const char *dir)
 {
+	struct dir *actual_dir;
+	struct thread *cur = thread_current();
+
 	if(!pointer_valid((void *) dir))
 		exit(-1);
 
-	return false;
+	actual_dir = dir_lookup_path((char *) dir);
+	if(!actual_dir)
+		return false;
+
+	dir_close(cur->curr_dir);
+	cur->curr_dir = actual_dir;
+
+	return true;
 }
 
 bool
@@ -463,6 +474,8 @@ mkdir (const char *dir)
 {
 	if(!pointer_valid((void *) dir))
 		exit(-1);
+
+	//trim the dir pathname to see if the containing path exists
 
 	return false;
 }
@@ -494,10 +507,16 @@ isdir (int fd)
 int
 inumber (int fd)
 {
+	struct file *fd_file;
+
 	if(!fd_valid(fd))
 		exit(-1);
 
-	return true;
+	fd_file = fd_to_file(fd);
+	if(!fd_file)
+		return -1;
+
+	return (int) inode_get_inumber(file_get_inode(fd_file));
 }
 
 //END OF FILESYS CODE

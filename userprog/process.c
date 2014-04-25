@@ -25,7 +25,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
 /*Added global variables*/
 char *argv[MAX_ARGS];				/*Stores the command line args*/
-int argc;										/*Count of how many cmd lne args*/
+int argc;							/*Count of how many cmd lne args*/
 
 /* Starts a new thread running a user program loaded from
 	 FILENAME.  The new thread may be scheduled (and may even exit)

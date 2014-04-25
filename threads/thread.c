@@ -14,6 +14,8 @@
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
+//added code
+#include "filesys/directory.h"
 
 /* Random value for struct thread's `magic' member.
 	 Used to detect stack overflow.  See the big comment at the top
@@ -188,6 +190,9 @@ thread_create (const char *name, int priority,
 	//Siva started driving
 	t->parent = thread_current();
 	//Siva stopped driving
+
+	// P4 Added Code;
+	t->curr_dir = thread_current()->curr_dir;
 
 	/* Prepare thread for first run by initializing its stack.
 		 Do this atomically so intermediate values for the 'stack' 
