@@ -176,8 +176,11 @@ byte_to_sector (const struct inode *inode, off_t pos)
     return -1;
 
   if (pos < inode->data.length) {
-    if(level_indir == DIRECT)
+    if(level_indir == DIRECT) {
+      // printf("asdf %d\n", inode->data.length);
+      // return inode->data.end + pos/BLOCK_SECTOR_SIZE;
       return inode->data.inode_blocks[pos/BLOCK_SECTOR_SIZE];
+    }
     else if (level_indir == FIRST_INDIRECT) {
       pos -= DIRECT_SIZE;
       return inode->data.first_indir[pos];
@@ -229,6 +232,7 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
       disk_inode->end = 0;
       disk_inode->f_end = 0;
       disk_inode->s_end = 0;
+      // printf("\n\n%d\n\n\n", sectors);
       if(allocate_sectors(sectors, disk_inode)) {
         block_write (fs_device, sector, disk_inode);
         success = true;
@@ -416,16 +420,22 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   if (inode->deny_write_cnt)
     return 0;
 
-  // lock_acquire(&inode->lock);
-  if((int) byte_to_sector(inode, offset+size) == -1)
+  // lock_acquire(&inode->lock);;
+  if(offset + size > inode->data.length) {
+    // printf("offset %d\n", DIV_ROUND_UP(offset+size, BLOCK_SECTOR_SIZE));
     if(allocate_sectors(DIV_ROUND_UP(offset+size, BLOCK_SECTOR_SIZE), &inode->data))
       inode->data.length = offset + size;
+  }
+  // printf("inode len %d\n", inode->data.length);
+  // printf("%d\n", inode->data.end);
   // lock_release(&inode->lock);
 
   while (size > 0) 
     {
+      printf("Off: %d\n", offset);
       /* Sector to write, starting byte offset within sector. */
       block_sector_t sector_idx = byte_to_sector (inode, offset);
+      printf("Sctr Idx:   %d\n", sector_idx);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
