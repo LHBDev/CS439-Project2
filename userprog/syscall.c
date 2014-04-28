@@ -12,6 +12,7 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "lib/user/syscall.h"
+#include "lib/string.h"
 #include "devices/shutdown.h"
 #include "devices/input.h"
 
@@ -21,6 +22,7 @@ static void syscall_handler (struct intr_frame *);
 bool pointer_valid (void * given_addr);
 bool fd_valid (int fd);
 struct file * fd_to_file (int fd);
+struct dir * fd_to_dir (int fd);
 
 /* Added global variables */
 struct lock file_lock;
@@ -269,6 +271,8 @@ int
 open (const char *file)
 {
 	struct file *actual_file;
+	struct dir *actual_dir;
+	struct inode *inode;
 	struct thread *cur = thread_current();
 	int i, fd;
 	
@@ -283,13 +287,31 @@ open (const char *file)
 	if(!actual_file)
 		return -1;
 
-	//put the file pointer into the thread's file_list
-	for(i = 2; i < MAX_FILES; i++)
-		if(!cur->file_list[i])
-			break;
-	//insert the file into the position
-	fd = i;
-	cur->file_list[fd] = actual_file;
+	inode = file_get_inode(actual_file);
+
+	if(inode_is_dir(inode))
+		{
+			actual_dir = dir_open(inode_reopen(inode));
+			//put the dir pointer into the thread's dir_list
+			for(i = 0; i < MAX_FILES; i++)
+				if(!cur->dir_list[i])
+					break;
+
+			cur->dir_list[i] = actual_dir;
+			//do not want to share the same fd with files
+			fd = i + MAX_FILES;
+		}
+	else 
+		{
+			//put the file pointer into the thread's file_list
+			for(i = 2; i < MAX_FILES; i++)
+				if(!cur->file_list[i])
+					break;
+			//insert the file into the position
+			fd = i;
+			cur->file_list[fd] = actual_file;
+		}
+
 	return fd;
 }
 
@@ -435,20 +457,31 @@ void
 close (int fd)
 {
 	struct file *fd_file;
+	struct dir *fd_dir;
 	struct thread *cur = thread_current();
  
-	if(!fd_valid(fd))
+	if(fd < 0)
 		exit(-1);
 
 	lock_acquire(&file_lock);
-	fd_file = fd_to_file(fd);
-	file_close(fd_file);
+	if(fd < MAX_FILES) {
+		fd_file = fd_to_file(fd);
+		file_close(fd_file);
+	}
+	else {
+		fd_dir = fd_to_dir(fd);
+		dir_close(fd_dir);
+	}
 	lock_release(&file_lock);
 
-	cur->file_list[fd] = NULL;
+	if(fd < MAX_FILES)
+		cur->file_list[fd] = NULL;
+	else
+		cur->dir_list[fd - MAX_FILES] = NULL;
 }
 //Siva stopped driving
 
+//CHANGE FD LOOKUP FOR ALL BELOW METHODS
 //FILESYS ADDED CODE
 bool
 chdir (const char *dir)
@@ -483,40 +516,59 @@ mkdir (const char *dir)
 bool
 readdir (int fd, char *name)
 {
-	if(!pointer_valid((void *) name) || !fd_valid(fd))
+	struct dir *actual_dir;
+
+	if(!pointer_valid((void *) name) || fd < MAX_FILES
+		 || strlen(name) < READDIR_MAX_LEN + 1)
 		exit(-1);
 
-	return false;
+	actual_dir = fd_to_dir(fd);
+
+	return dir_readdir(actual_dir, name);
 } 
 
 bool
 isdir (int fd)
 {
-	struct file *fd_file;
+	return (fd >= MAX_FILES) ? true : false;
+	// struct file *fd_file;
 	
-	if(!fd_valid(fd))
-		exit(-1);
+	// if(fd >= MAX_FILES)
+	// 	return true;
 
-	fd_file = fd_to_file(fd);
-	if(!fd_file)
-		return false;
+	// fd_file = fd_to_file(fd);
+	// if(!fd_file)
+	// 	return false;
 
-	return inode_is_dir(file_get_inode(fd_file));
+	// return inode_is_dir(file_get_inode(fd_file));
 }
 
 int
 inumber (int fd)
 {
 	struct file *fd_file;
+	struct dir *fd_dir;
+	int result;
 
-	if(!fd_valid(fd))
+	if(fd < 0)
 		exit(-1);
 
-	fd_file = fd_to_file(fd);
-	if(!fd_file)
-		return -1;
+	if(fd < MAX_FILES)
+		{
+			fd_file = fd_to_file(fd);
+			if(!fd_file)
+				return -1;
+			result = (int) inode_get_inumber(file_get_inode(fd_file));
+		}
+	else
+		{
+			fd_dir = fd_to_dir(fd);
+			if(!fd_dir)
+				return -1;
+			result = (int) inode_get_inumber(dir_get_inode(fd_dir));
+		}
 
-	return (int) inode_get_inumber(file_get_inode(fd_file));
+	return result;
 }
 
 //END OF FILESYS CODE
@@ -567,5 +619,19 @@ fd_to_file (int fd)
 	return fd_file;
 }
 //Siva stopped driving
+
+struct dir *
+fd_to_dir (int fd)
+{
+	struct thread *cur = thread_current();
+	struct dir *fd_dir = NULL;
+	int i;
+
+	for(i = 0; i < MAX_FILES; i++)
+			if(fd - MAX_FILES == i)
+				fd_dir = cur->dir_list[i];
+
+	return fd_dir;
+}
 
 /*End of helper methods*/

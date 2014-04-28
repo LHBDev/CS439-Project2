@@ -23,6 +23,7 @@ enum level
 
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
+//DONT USE POINTERS OR ARRAY
 struct inode_disk
   {
     bool is_dir;                        /* True if directory. */
@@ -31,9 +32,10 @@ struct inode_disk
     off_t f_end;
     off_t s_end;
     unsigned magic;                     /* Magic number. */
-    block_sector_t *first_indir;
-    block_sector_t *second_indir;
-    block_sector_t inode_blocks[DIRECT_SIZE];
+    block_sector_t first_indir;
+    block_sector_t second_indir;
+    block_sector_t inode_blocks;
+    uint32_t unused[119];
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -108,20 +110,20 @@ allocate_direct (int num_sectors, struct inode_disk *data, int indir)
   static char zeros[BLOCK_SECTOR_SIZE];
 
   if(!indir) {
-    if(!free_map_allocate(num_sectors - data->end, &data->inode_blocks[data->end]))
+    if(!free_map_allocate(num_sectors - data->end, &data->inode_blocks + data->end))
       return false;
     while(data->end < num_sectors)
-      block_write(fs_device, data->inode_blocks[(data->end)++], zeros);
+      block_write(fs_device, data->inode_blocks + (data->end)++, zeros);
   } else if(indir == 1) {
-    if(!free_map_allocate(num_sectors - data->f_end, &data->first_indir[data->f_end]))
+    if(!free_map_allocate(num_sectors - data->f_end, &data->first_indir + data->f_end))
       return false;
     while(data->f_end < num_sectors)
-      block_write(fs_device, data->first_indir[(data->f_end)++], zeros);
+      block_write(fs_device, data->first_indir + (data->f_end)++, zeros);
   } else {
-    if(!free_map_allocate(num_sectors - data->s_end, &data->second_indir[data->s_end]))
+    if(!free_map_allocate(num_sectors - data->s_end, &data->second_indir + data->s_end))
       return false;
     while(data->s_end < num_sectors)
-      block_write(fs_device, data->second_indir[(data->s_end)++], zeros);
+      block_write(fs_device, data->second_indir + (data->s_end)++, zeros);
   }
   return true;
 }
@@ -130,7 +132,6 @@ static bool
 allocate_first_indirect (int num_sectors, struct inode_disk *data, bool second_indir)
 {
   if(!second_indir) {
-    data->first_indir = calloc(128 * 128, BLOCK_SECTOR_SIZE);
     if(!allocate_direct(num_sectors, data, 1))
       return false;
   } else {
@@ -144,7 +145,6 @@ static bool
 allocate_second_indirect (int num_sectors, struct inode_disk *data)
 {
   int num_alloc = DIV_ROUND_UP(num_sectors, F_INDIR_SIZE);
-  data->second_indir = calloc(num_alloc, F_INDIR_SIZE);
 
   while(num_alloc-- > 0)
     if(!allocate_first_indirect(F_INDIR_SIZE, data, true))
@@ -155,11 +155,9 @@ allocate_second_indirect (int num_sectors, struct inode_disk *data)
 static void
 deallocate_sectors (struct inode_disk *data)
 {
-  free_map_release(data->inode_blocks[0], data->end);
-  free_map_release(data->first_indir[0], data->f_end);
-  free_map_release(data->second_indir[0], data->s_end);
-  free(data->first_indir);
-  free(data->second_indir);
+  free_map_release(data->inode_blocks, data->end);
+  free_map_release(data->first_indir, data->f_end);
+  free_map_release(data->second_indir, data->s_end);
 }
 
 /* Returns the block device sector that contains byte offset POS
@@ -178,16 +176,15 @@ byte_to_sector (const struct inode *inode, off_t pos)
   if (pos < inode->data.length) {
     if(level_indir == DIRECT) {
       // printf("asdf %d\n", inode->data.length);
-      // return inode->data.end + pos/BLOCK_SECTOR_SIZE;
-      return inode->data.inode_blocks[pos/BLOCK_SECTOR_SIZE];
+      return inode->data.inode_blocks + pos/BLOCK_SECTOR_SIZE;
     }
     else if (level_indir == FIRST_INDIRECT) {
       pos -= DIRECT_SIZE;
-      return inode->data.first_indir[pos];
+      return inode->data.first_indir + pos/BLOCK_SECTOR_SIZE;
     }
     else {
       pos -= F_INDIR_SIZE;
-      return inode->data.second_indir[pos];
+      return inode->data.second_indir + pos/BLOCK_SECTOR_SIZE;
     }
   }
   else
@@ -435,7 +432,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       printf("Off: %d\n", offset);
       /* Sector to write, starting byte offset within sector. */
       block_sector_t sector_idx = byte_to_sector (inode, offset);
-      printf("Sctr Idx:   %d\n", sector_idx);
+      printf("Sctr Idx: %d\n", sector_idx);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */

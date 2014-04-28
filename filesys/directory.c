@@ -37,38 +37,47 @@ extract_filename (char *path_name)
 struct dir *
 dir_lookup_path (char *path_name)
 {
-  struct dir *result;
+  //Use two dir pointers to keep track of 'parent dir'?
+  struct dir *prev, cur;
   struct inode *temp;
   char *ptr = path_name;
   char dir_name[NAME_MAX + 1];
   int i = 0;
 
   if(*ptr == '/')
-    result = dir_open_root();
+    cur = dir_open_root();
   else
-    result = thread_current()->curr_dir;
+    cur = dir_reopen (thread_current()->curr_dir);
 
   while(*ptr != '\0') {
     i = 0;
     while(*ptr != '/')
       dir_name[i++] = *(ptr++);
     dir_name[i] = '\0';
-    ptr++;
+
     //open dir here, check '..' and '.' cases
     if(dir_name[0] == '\0')
       continue;
-    else if (!strcmp(dir_name, ".")) {
+    else if (!strcmp(dir_name, "."))
       continue;
-    } else if (!strcmp(dir_name, "..")) {
+    else if (!strcmp(dir_name, "..")) {
       //get the previous dir, parent pointer?
     } else {
-      dir_lookup(result, dir_name, &temp);
-      dir_close(result);
-      result = dir_open(temp);
+      //error case, inode is still null
+      if(!dir_lookup(cur, dir_name, &temp))
+        return NULL;
+      else {
+        //update dir pointers
+        prev = cur;
+        dir_close(cur);
+        dir_open(prev);
+        result = dir_open(temp);
+      }
     }
+    ptr++;
   }
 
-  return result;
+  return cur;
 }
 
 /* Creates a directory with space for ENTRY_CNT entries in the
@@ -194,16 +203,19 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   struct dir_entry e;
   off_t ofs;
   bool success = false;
+  char *file_name;
 
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
+  file_name = extract_filename((char *) name);
+
   /* Check NAME for validity. */
-  if (*name == '\0' || strlen (name) > NAME_MAX)
+  if (*file_name == '\0' || strlen (file_name) > NAME_MAX)
     return false;
 
   /* Check that NAME is not in use. */
-  if (lookup (dir, name, NULL, NULL))
+  if (lookup (dir, file_name, NULL, NULL))
     goto done;
 
   /* Set OFS to offset of free slot.
@@ -220,7 +232,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 
   /* Write slot. */
   e.in_use = true;
-  strlcpy (e.name, name, sizeof e.name);
+  strlcpy (e.name, file_name, sizeof e.name);
   e.inode_sector = inode_sector;
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
 
@@ -238,17 +250,24 @@ dir_remove (struct dir *dir, const char *name)
   struct inode *inode = NULL;
   bool success = false;
   off_t ofs;
+  char *file_name;
 
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
+  file_name = extract_filename ((char *) name);
+
   /* Find directory entry. */
-  if (!lookup (dir, name, &e, &ofs))
+  if (!lookup (dir, file_name, &e, &ofs))
     goto done;
 
   /* Open inode. */
   inode = inode_open (e.inode_sector);
   if (inode == NULL)
+    goto done;
+
+  //ADDED CODE
+  if(inode_is_dir(inode) && !dir_is_empty(inode))
     goto done;
 
   /* Erase directory entry. */
@@ -283,4 +302,19 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
         } 
     }
   return false;
+}
+
+//HELPER FUNCTION TO CHECK IF DIR IS EMPTY
+bool
+dir_is_empty (struct inode *dir_inode)
+{
+  struct dir_entry e;
+  size_t ofs;
+
+  for (ofs = 0; inode_read_at (dir_inode, &e, sizeof e, ofs) == sizeof e;
+       ofs += sizeof e)
+    if(e.in_use)
+      return false;
+
+  return true;
 }

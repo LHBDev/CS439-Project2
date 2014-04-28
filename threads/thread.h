@@ -129,6 +129,7 @@ struct thread
 
 		//P4: Added Code
 		struct dir *curr_dir;
+		struct dir *dir_list[MAX_FILES];
 	};
 
 /* If false (default), use round-robin scheduler.
