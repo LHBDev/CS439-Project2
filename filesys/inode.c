@@ -23,7 +23,6 @@ enum level
 
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
-//DONT USE POINTERS OR ARRAY
 struct inode_disk
   {
     bool is_dir;                        /* True if directory. */
@@ -229,7 +228,6 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
       disk_inode->end = 0;
       disk_inode->f_end = 0;
       disk_inode->s_end = 0;
-      // printf("\n\n%d\n\n\n", sectors);
       if(allocate_sectors(sectors, disk_inode)) {
         block_write (fs_device, sector, disk_inode);
         success = true;
@@ -429,10 +427,10 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
   while (size > 0) 
     {
-      printf("Off: %d\n", offset);
+      // printf("Off: %d\n", offset);
       /* Sector to write, starting byte offset within sector. */
       block_sector_t sector_idx = byte_to_sector (inode, offset);
-      printf("Sctr Idx: %d\n", sector_idx);
+      // printf("Sctr Idx: %d\n", sector_idx);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */

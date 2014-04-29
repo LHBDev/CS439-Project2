@@ -505,12 +505,37 @@ chdir (const char *dir)
 bool
 mkdir (const char *dir)
 {
+	struct dir *parent_dir, *new_dir;
+	struct file *new_file;
+	struct inode *dir_inode;
+	char *new_dir_name, *path_name;
+
 	if(!pointer_valid((void *) dir))
 		exit(-1);
 
-	//trim the dir pathname to see if the containing path exists
+	new_dir_name = extract_filename((char *) dir);
+	path_name = extract_pathname((char *) dir);
 
-	return false;
+	if(!filesys_create(dir, BLOCK_SECTOR_SIZE))
+		return false;
+
+	new_file = filesys_open(dir);
+	new_dir = dir_open(file_get_inode(new_file));
+
+	parent_dir = dir_lookup_path(path_name);
+	if(!parent_dir)
+		return false;
+	
+	dir_lookup(parent_dir, new_dir_name, &dir_inode);
+	if(!dir_inode)
+		return false;
+
+	//add parent pointer to newly created dir
+	dir_add(new_dir, "..", inode_get_inumber(dir_get_inode(parent_dir)));
+
+	file_close(new_file);
+	dir_close(new_dir);
+	return true;
 }
 
 bool
@@ -531,16 +556,6 @@ bool
 isdir (int fd)
 {
 	return (fd >= MAX_FILES) ? true : false;
-	// struct file *fd_file;
-	
-	// if(fd >= MAX_FILES)
-	// 	return true;
-
-	// fd_file = fd_to_file(fd);
-	// if(!fd_file)
-	// 	return false;
-
-	// return inode_is_dir(file_get_inode(fd_file));
 }
 
 int

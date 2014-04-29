@@ -45,8 +45,9 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size) 
 {
+  char *path_name = extract_pathname((char *) name);
   block_sector_t inode_sector = 0;
-  struct dir *dir = dir_lookup_path((char *) name);
+  struct dir *dir = dir_lookup_path(path_name);
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size, false)

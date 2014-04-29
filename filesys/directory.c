@@ -34,20 +34,40 @@ extract_filename (char *path_name)
   return result;
 }
 
+char *
+extract_pathname (char *path_name)
+{
+  char *result, *p1;
+
+  p1 = path_name;
+  p1 = strrchr(path_name, '/');
+  //BUGS HERE
+  if(!p1) {
+    result = malloc((p1 - path_name) * sizeof(char));
+    memcpy(result, path_name, (p1 - path_name));
+    p1 = strrchr(result, '/');
+    *p1 = '\0';
+    p1 = result;
+    free(result);
+  }
+  
+  return p1;
+}
+
 struct dir *
 dir_lookup_path (char *path_name)
 {
   //Use two dir pointers to keep track of 'parent dir'?
-  struct dir *prev, cur;
+  struct dir *result;
   struct inode *temp;
   char *ptr = path_name;
   char dir_name[NAME_MAX + 1];
   int i = 0;
 
   if(*ptr == '/')
-    cur = dir_open_root();
+    result = dir_open_root();
   else
-    cur = dir_reopen (thread_current()->curr_dir);
+    result = dir_reopen (thread_current()->curr_dir);
 
   while(*ptr != '\0') {
     i = 0;
@@ -60,24 +80,20 @@ dir_lookup_path (char *path_name)
       continue;
     else if (!strcmp(dir_name, "."))
       continue;
-    else if (!strcmp(dir_name, "..")) {
-      //get the previous dir, parent pointer?
-    } else {
+    else {
       //error case, inode is still null
-      if(!dir_lookup(cur, dir_name, &temp))
+      if(!dir_lookup(result, dir_name, &temp))
         return NULL;
       else {
         //update dir pointers
-        prev = cur;
-        dir_close(cur);
-        dir_open(prev);
+        dir_close(result);
         result = dir_open(temp);
       }
     }
     ptr++;
   }
 
-  return cur;
+  return result;
 }
 
 /* Creates a directory with space for ENTRY_CNT entries in the

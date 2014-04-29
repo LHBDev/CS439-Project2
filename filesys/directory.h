@@ -15,6 +15,7 @@ struct inode;
 
 //Added Code
 char *extract_filename (char *);
+char *extract_pathname (char *);
 struct dir *dir_lookup_path (char *);
 
 /* Opening and closing directories. */
