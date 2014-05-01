@@ -1,4 +1,4 @@
 #!/bin/sh
 git add *
-git commit -m "File growth implemented"
+git commit -m "Finished major code addition, need to pass tests"
 git push -u origin file_system

@@ -40,17 +40,18 @@ extract_pathname (char *path_name)
   char *result, *p1;
 
   p1 = path_name;
-  p1 = strrchr(path_name, '/');
-  //BUGS HERE
-  if(!p1) {
-    result = malloc((p1 - path_name) * sizeof(char));
-    memcpy(result, path_name, (p1 - path_name));
-    p1 = strrchr(result, '/');
-    *p1 = '\0';
-    p1 = result;
-    free(result);
+  if(*p1 == '/') {
+    p1 = strrchr(path_name, '/');
+    //BUGS HERE
+    if(!p1) {
+      result = malloc((p1 - path_name) * sizeof(char));
+      memcpy(result, path_name, (p1 - path_name));
+      p1 = strrchr(result, '/');
+      *p1 = '\0';
+      p1 = result;
+      free(result);
+    }
   }
-  
   return p1;
 }
 
@@ -61,17 +62,30 @@ dir_lookup_path (char *path_name)
   struct dir *result;
   struct inode *temp;
   char *ptr = path_name;
+  char *tokenize;
+  char *token, *save_ptr;
   char dir_name[NAME_MAX + 1];
   int i = 0;
 
-  if(*ptr == '/')
+  // tokenize = malloc(strlen(path_name) + 1 * sizeof(char));
+  // strlcpy (tokenize, path_name, strlen(path_name) + 1);
+
+  // //Ruben started driving
+  // for (token = strtok_r (tokenize, "/", &save_ptr); token != NULL;
+  //       token = strtok_r (NULL, "/", &save_ptr))
+  //   {
+  //     printf("token %s\n", token);
+  //   }
+  // free(tokenize);
+
+  if(*ptr == '/' || !thread_current()->curr_dir)
     result = dir_open_root();
   else
     result = dir_reopen (thread_current()->curr_dir);
 
   while(*ptr != '\0') {
     i = 0;
-    while(*ptr != '/')
+    while(*ptr != '/' && *ptr != '\0')
       dir_name[i++] = *(ptr++);
     dir_name[i] = '\0';
 
@@ -83,8 +97,10 @@ dir_lookup_path (char *path_name)
     else {
       //error case, inode is still null
       if(!dir_lookup(result, dir_name, &temp))
-        return NULL;
+        return result;
       else {
+        if(!inode_is_dir(temp))
+          return result;
         //update dir pointers
         dir_close(result);
         result = dir_open(temp);
@@ -174,7 +190,7 @@ lookup (const struct dir *dir, const char *name,
   ASSERT (name != NULL);
 
   for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
-       ofs += sizeof e) 
+       ofs += sizeof e) {
     if (e.in_use && !strcmp (name, e.name)) 
       {
         if (ep != NULL)
@@ -183,6 +199,7 @@ lookup (const struct dir *dir, const char *name,
           *ofsp = ofs;
         return true;
       }
+  }
   return false;
 }
 

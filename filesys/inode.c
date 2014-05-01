@@ -18,7 +18,7 @@ enum level
     SECOND_INDIRECT
   };
 
-#define DIRECT_SIZE 120
+#define DIRECT_SIZE 128
 #define F_INDIR_SIZE (128 * 128 * BLOCK_SECTOR_SIZE)
 
 /* On-disk inode.
@@ -69,12 +69,10 @@ static enum level
 find_indir (int num_sectors)
 {
   enum level result;
-  int num_alloc;
-  num_alloc = DIV_ROUND_UP(num_sectors, BLOCK_SECTOR_SIZE);
 
-  if(num_alloc < DIRECT_SIZE)
+  if(num_sectors < DIRECT_SIZE)
     result = DIRECT;
-  else if(num_alloc < 128 * 128)
+  else if(num_sectors < 128 * 128)
     result = FIRST_INDIRECT;
   else
     result = SECOND_INDIRECT;
@@ -85,18 +83,26 @@ find_indir (int num_sectors)
 static bool
 allocate_sectors (int num_sectors, struct inode_disk *data)
 {
-  enum level level_indir;
+  // enum level level_indir;
 
   if(num_sectors > 0)
     {
-      level_indir = find_indir(num_sectors);
-
-      if(level_indir == DIRECT)
+      if(num_sectors > 128) {
+        return (allocate_direct(num_sectors, data, 0) &&
+                allocate_first_indirect(num_sectors - 128, data, false));
+        if(num_sectors > 128 * 128)
+          PANIC ("TOO LAZY DO LATER");
+      } else
         return allocate_direct(num_sectors, data, 0);
-      else if (level_indir == FIRST_INDIRECT)
-        return allocate_first_indirect(num_sectors, data, false);
-      else
-        return allocate_second_indirect(num_sectors, data);
+
+      // level_indir = find_indir(num_sectors);
+
+      // if(level_indir == DIRECT)
+      //   return allocate_direct(num_sectors, data, 0);
+      // else if (level_indir  == FIRST_INDIRECT)
+      //   return allocate_first_indirect(num_sectors, data, false);
+      // else
+      //   return allocate_second_indirect(num_sectors, data);
     }
   else
     return true;
@@ -166,7 +172,7 @@ deallocate_sectors (struct inode_disk *data)
 static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos) 
 {
-  enum level level_indir = find_indir(pos);
+  enum level level_indir = find_indir(bytes_to_sectors(pos));
 
   ASSERT (inode != NULL);
   if(pos < 0)
@@ -174,12 +180,13 @@ byte_to_sector (const struct inode *inode, off_t pos)
 
   if (pos < inode->data.length) {
     if(level_indir == DIRECT) {
-      // printf("asdf %d\n", inode->data.length);
       return inode->data.inode_blocks + pos/BLOCK_SECTOR_SIZE;
     }
     else if (level_indir == FIRST_INDIRECT) {
-      pos -= DIRECT_SIZE;
-      return inode->data.first_indir + pos/BLOCK_SECTOR_SIZE;
+      // printf("hereherhere\n");
+      pos = DIV_ROUND_UP(pos, BLOCK_SECTOR_SIZE);
+      // printf("%d %d\n", pos, pos % DIRECT_SIZE);
+      return inode->data.first_indir + pos % DIRECT_SIZE;
     }
     else {
       pos -= F_INDIR_SIZE;
@@ -233,19 +240,6 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
         success = true;
       }
       free (disk_inode);
-      // if (free_map_allocate (sectors, &disk_inode->start)) 
-      //   {
-      //     block_write (fs_device, sector, disk_inode);
-      //     if (sectors > 0) 
-      //       {
-      //         static char zeros[BLOCK_SECTOR_SIZE];
-      //         size_t i;
-              
-      //         for (i = 0; i < sectors; i++) 
-      //           block_write (fs_device, disk_inode->start + i, zeros);
-      //       }
-      //     success = true; 
-      //   } 
     }
   return success;
 }
@@ -324,8 +318,6 @@ inode_close (struct inode *inode)
         {
           free_map_release (inode->sector, 1);
           deallocate_sectors(&inode->data);
-          // free_map_release (inode->data.start,
-          //                   bytes_to_sectors (inode->data.length)); 
         }
 
       free (inode); 
@@ -415,22 +407,21 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   if (inode->deny_write_cnt)
     return 0;
 
-  // lock_acquire(&inode->lock);;
+  // lock_acquire(&inode->lock);
   if(offset + size > inode->data.length) {
-    // printf("offset %d\n", DIV_ROUND_UP(offset+size, BLOCK_SECTOR_SIZE));
     if(allocate_sectors(DIV_ROUND_UP(offset+size, BLOCK_SECTOR_SIZE), &inode->data))
       inode->data.length = offset + size;
   }
-  // printf("inode len %d\n", inode->data.length);
-  // printf("%d\n", inode->data.end);
   // lock_release(&inode->lock);
+
+  // printf("asdf %d\n", size);
 
   while (size > 0) 
     {
-      // printf("Off: %d\n", offset);
       /* Sector to write, starting byte offset within sector. */
       block_sector_t sector_idx = byte_to_sector (inode, offset);
-      // printf("Sctr Idx: %d\n", sector_idx);
+      if(offset > 64000)
+        printf("%d %d\n", offset, (int) sector_idx);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */

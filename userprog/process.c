@@ -113,6 +113,10 @@ start_process (void *file_name_)
 	sema_up(&child->parent->load_sema);
 
 	//Siva stopped driving
+	if(child->parent->curr_dir)
+		child->curr_dir = dir_reopen(child->parent->curr_dir);
+	else
+		child->curr_dir = dir_open_root();
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
