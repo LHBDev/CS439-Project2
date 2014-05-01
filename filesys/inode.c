@@ -18,7 +18,7 @@ enum level
     SECOND_INDIRECT
   };
 
-#define DIRECT_SIZE 128
+#define DIRECT_SIZE 120
 #define F_INDIR_SIZE (128 * 128 * BLOCK_SECTOR_SIZE)
 
 /* On-disk inode.
@@ -33,8 +33,7 @@ struct inode_disk
     unsigned magic;                     /* Magic number. */
     block_sector_t first_indir;
     block_sector_t second_indir;
-    block_sector_t inode_blocks;
-    uint32_t unused[119];
+    block_sector_t inode_blocks[120];
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -87,9 +86,9 @@ allocate_sectors (int num_sectors, struct inode_disk *data)
 
   if(num_sectors > 0)
     {
-      if(num_sectors > 128) {
+      if(num_sectors > 120) {
         return (allocate_direct(num_sectors, data, 0) &&
-                allocate_first_indirect(num_sectors - 128, data, false));
+                allocate_first_indirect(num_sectors - 120, data, false));
         if(num_sectors > 128 * 128)
           PANIC ("TOO LAZY DO LATER");
       } else
@@ -115,15 +114,18 @@ allocate_direct (int num_sectors, struct inode_disk *data, int indir)
   static char zeros[BLOCK_SECTOR_SIZE];
 
   if(!indir) {
-    if(!free_map_allocate(num_sectors - data->end, &data->inode_blocks + data->end))
-      return false;
-    while(data->end < num_sectors)
-      block_write(fs_device, data->inode_blocks + (data->end)++, zeros);
+    while(data->end < num_sectors) {
+      if(!free_map_allocate(1, &data->inode_blocks[data->end]))
+        return false;
+      block_write(fs_device, data->inode_blocks[(data->end)++], zeros);
+    }
   } else if(indir == 1) {
     if(!free_map_allocate(num_sectors - data->f_end, &data->first_indir + data->f_end))
       return false;
-    while(data->f_end < num_sectors)
+    while(data->f_end < num_sectors) {
+      printf("%d\n", (int) data->first_indir + (data->f_end));
       block_write(fs_device, data->first_indir + (data->f_end)++, zeros);
+    }
   } else {
     if(!free_map_allocate(num_sectors - data->s_end, &data->second_indir + data->s_end))
       return false;
@@ -180,7 +182,7 @@ byte_to_sector (const struct inode *inode, off_t pos)
 
   if (pos < inode->data.length) {
     if(level_indir == DIRECT) {
-      return inode->data.inode_blocks + pos/BLOCK_SECTOR_SIZE;
+      return inode->data.inode_blocks[pos/BLOCK_SECTOR_SIZE];
     }
     else if (level_indir == FIRST_INDIRECT) {
       // printf("hereherhere\n");
@@ -413,8 +415,6 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       inode->data.length = offset + size;
   }
   // lock_release(&inode->lock);
-
-  // printf("asdf %d\n", size);
 
   while (size > 0) 
     {
