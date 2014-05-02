@@ -288,9 +288,11 @@ open (const char *file)
 		return -1;
 
 	inode = file_get_inode(actual_file);
+	// printf("joojo %p\n", inode);
 
 	if(inode_is_dir(inode))
 		{
+			// printf("yes\n");
 			actual_dir = dir_open(inode_reopen(inode));
 			//put the dir pointer into the thread's dir_list
 			for(i = 0; i < MAX_FILES; i++)
@@ -481,23 +483,45 @@ close (int fd)
 }
 //Siva stopped driving
 
-//CHANGE FD LOOKUP FOR ALL BELOW METHODS
 //FILESYS ADDED CODE
 bool
 chdir (const char *dir)
 {
-	struct dir *actual_dir;
+	struct dir *result;
 	struct thread *cur = thread_current();
+	struct inode *temp;
+  char *tokenize;
+  char *token, *save_ptr;
 
-	if(!pointer_valid((void *) dir))
+  if(!pointer_valid((void *) dir))
 		exit(-1);
 
-	actual_dir = dir_lookup_path((char *) dir);
-	if(!actual_dir)
+  if(*dir == '/' || !thread_current()->curr_dir)
+    result = dir_open_root();
+  else
+    result = dir_reopen (thread_current()->curr_dir);
+
+  tokenize = malloc(strlen(dir) + 1 * sizeof(char));
+  strlcpy (tokenize, dir, strlen(dir) + 1);
+
+  for (token = strtok_r (tokenize, "/", &save_ptr); token != NULL;
+        token = strtok_r (NULL, "/", &save_ptr))
+    {
+      if(!dir_lookup(result, token, &temp)) {
+          free(tokenize);
+          return false;
+      }
+      dir_close(result);
+      result = dir_open(temp);
+    }
+
+  free(tokenize);
+
+	if(!result)
 		return false;
 
 	dir_close(cur->curr_dir);
-	cur->curr_dir = actual_dir;
+	cur->curr_dir = result;
 
 	return true;
 }
@@ -516,10 +540,11 @@ mkdir (const char *dir)
 	new_dir_name = extract_filename((char *) dir);
 	path_name = extract_pathname((char *) dir);
 
-	if(!filesys_create(dir, BLOCK_SECTOR_SIZE))
+	if(!filesys_create_dir(dir, BLOCK_SECTOR_SIZE))
 		return false;
 
 	new_file = filesys_open(dir);
+	ASSERT(new_file != NULL);
 	new_dir = dir_open(file_get_inode(new_file));
 
 	parent_dir = dir_lookup_path(path_name);
@@ -529,6 +554,8 @@ mkdir (const char *dir)
 	dir_lookup(parent_dir, new_dir_name, &dir_inode);
 	if(!dir_inode)
 		return false;
+	//add self pointer
+	dir_add(new_dir, ".", inode_get_inumber(file_get_inode(new_file)));
 
 	//add parent pointer to newly created dir
 	dir_add(new_dir, "..", inode_get_inumber(dir_get_inode(parent_dir)));

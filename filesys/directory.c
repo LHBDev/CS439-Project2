@@ -58,57 +58,33 @@ extract_pathname (char *path_name)
 struct dir *
 dir_lookup_path (char *path_name)
 {
-  //Use two dir pointers to keep track of 'parent dir'?
-  struct dir *result;
-  struct inode *temp;
-  char *ptr = path_name;
+  struct dir *result = NULL;
+  struct inode *temp_inode;
   char *tokenize;
-  char *token, *save_ptr;
-  char dir_name[NAME_MAX + 1];
-  int i = 0;
+  char *t1, *t2, *save_ptr;
 
-  // tokenize = malloc(strlen(path_name) + 1 * sizeof(char));
-  // strlcpy (tokenize, path_name, strlen(path_name) + 1);
-
-  // //Ruben started driving
-  // for (token = strtok_r (tokenize, "/", &save_ptr); token != NULL;
-  //       token = strtok_r (NULL, "/", &save_ptr))
-  //   {
-  //     printf("token %s\n", token);
-  //   }
-  // free(tokenize);
-
-  if(*ptr == '/' || !thread_current()->curr_dir)
+  if(*path_name == '/' || !thread_current()->curr_dir)
     result = dir_open_root();
   else
     result = dir_reopen (thread_current()->curr_dir);
 
-  while(*ptr != '\0') {
-    i = 0;
-    while(*ptr != '/' && *ptr != '\0')
-      dir_name[i++] = *(ptr++);
-    dir_name[i] = '\0';
+  tokenize = malloc(strlen(path_name) + 1 * sizeof(char));
+  strlcpy (tokenize, path_name, strlen(path_name) + 1);
+  t1 = strtok_r(tokenize, "/", &save_ptr);
 
-    //open dir here, check '..' and '.' cases
-    if(dir_name[0] == '\0')
-      continue;
-    else if (!strcmp(dir_name, "."))
-      continue;
-    else {
-      //error case, inode is still null
-      if(!dir_lookup(result, dir_name, &temp))
-        return result;
-      else {
-        if(!inode_is_dir(temp))
-          return result;
-        //update dir pointers
-        dir_close(result);
-        result = dir_open(temp);
+  for (t2 = strtok_r (NULL, "/", &save_ptr); t2 != NULL;
+        t2 = strtok_r (NULL, "/", &save_ptr))
+    {
+      if(!dir_lookup(result, t1, &temp_inode)) {
+          free(tokenize);
+          return NULL;
       }
+      dir_close(result);
+      result = dir_open(temp_inode);
+      t1 = t2;
     }
-    ptr++;
-  }
 
+  free(tokenize);
   return result;
 }
 
@@ -345,9 +321,11 @@ dir_is_empty (struct inode *dir_inode)
   size_t ofs;
 
   for (ofs = 0; inode_read_at (dir_inode, &e, sizeof e, ofs) == sizeof e;
-       ofs += sizeof e)
+       ofs += sizeof e) {
+    if(!strcmp(e.name, ".")|| !strcmp(e.name, ".."))
+      continue;
     if(e.in_use)
       return false;
-
+  }
   return true;
 }

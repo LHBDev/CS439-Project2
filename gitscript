@@ -1,4 +1,4 @@
 #!/bin/sh
 git add *
-git commit -m "Finished major code addition, need to pass tests"
+git commit -m "Should be passing tests"
 git push -u origin file_system
