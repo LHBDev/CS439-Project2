@@ -3,6 +3,7 @@
 #include "userprog/process.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+#include "threads/malloc.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/synch.h"
@@ -532,25 +533,25 @@ mkdir (const char *dir)
 	struct dir *parent_dir, *new_dir;
 	struct file *new_file;
 	struct inode *dir_inode;
-	char *new_dir_name, *path_name;
+	char *new_dir_name;
 
 	if(!pointer_valid((void *) dir))
 		exit(-1);
 
 	new_dir_name = extract_filename((char *) dir);
-	path_name = extract_pathname((char *) dir);
 
 	if(!filesys_create_dir(dir, BLOCK_SECTOR_SIZE))
 		return false;
 
 	new_file = filesys_open(dir);
-	ASSERT(new_file != NULL);
 	new_dir = dir_open(file_get_inode(new_file));
 
-	parent_dir = dir_lookup_path(path_name);
+
+	parent_dir = dir_lookup_path(dir);
 	if(!parent_dir)
 		return false;
 	
+	// printf("asdf %p\n", parent_dir);
 	dir_lookup(parent_dir, new_dir_name, &dir_inode);
 	if(!dir_inode)
 		return false;
@@ -571,7 +572,7 @@ readdir (int fd, char *name)
 	struct dir *actual_dir;
 
 	if(!pointer_valid((void *) name) || fd < MAX_FILES
-		 || strlen(name) < READDIR_MAX_LEN + 1)
+		 || strlen(name) > READDIR_MAX_LEN + 1)
 		exit(-1);
 
 	actual_dir = fd_to_dir(fd);

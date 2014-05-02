@@ -62,6 +62,7 @@ bool
 filesys_create_dir (const char *name, off_t initial_size)
 {
   // char *path_name = extract_pathname((char *) name);
+  struct inode *inode;
   block_sector_t inode_sector = 0;
   struct dir *dir = dir_lookup_path((char *) name);
   bool success = (dir != NULL
@@ -88,7 +89,7 @@ filesys_open (const char *name)
 
   if(*end_file != '\0') {
     if (dir != NULL)
-      dir_lookup (dir, name, &inode);
+      dir_lookup (dir, end_file, &inode);
     dir_close (dir);
   } else
     inode = dir_get_inode(dir);
@@ -107,6 +108,7 @@ filesys_remove (const char *name)
   bool success = dir != NULL && dir_remove (dir, name);
   dir_close (dir); 
 
+  printf("%d\n", success);
   return success;
 }
 
