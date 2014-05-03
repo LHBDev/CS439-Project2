@@ -42,10 +42,12 @@ filesys_done (void)
    Returns true if successful, false otherwise.
    Fails if a file named NAME already exists,
    or if internal memory allocation fails. */
+
+//P4 Added Code: We traverse through the path name instead
+//of opening the root directory. Driven by Ruben.
 bool
 filesys_create (const char *name, off_t initial_size) 
 {
-  // char *path_name = extract_pathname((char *) name);
   block_sector_t inode_sector = 0;
   struct dir *dir = dir_lookup_path((char *) name);
   bool success = (dir != NULL
@@ -58,11 +60,13 @@ filesys_create (const char *name, off_t initial_size)
   return success;
 }
 
+//P4 Added Code: Similar to filesys_create but this method is specialized
+//in creating a directory as opposed to a file. Header code driven by Siva.
+
+//Siva started driving
 bool
 filesys_create_dir (const char *name, off_t initial_size)
 {
-  // char *path_name = extract_pathname((char *) name);
-  struct inode *inode;
   block_sector_t inode_sector = 0;
   struct dir *dir = dir_lookup_path((char *) name);
   bool success = (dir != NULL
@@ -74,12 +78,18 @@ filesys_create_dir (const char *name, off_t initial_size)
   dir_close (dir);
   return success;
 }
+//Siva stopped driving
 
 /* Opens the file with the given NAME.
    Returns the new file if successful or a null pointer
    otherwise.
    Fails if no file named NAME exists,
    or if an internal memory allocation fails. */
+
+//P4 Added Code: We traverse through the path name instead
+//of opening the root directory. We also extract the filename
+//that should be opened. Driven by Siva.
+
 struct file *
 filesys_open (const char *name)
 {
@@ -108,7 +118,6 @@ filesys_remove (const char *name)
   bool success = dir != NULL && dir_remove (dir, name);
   dir_close (dir); 
 
-  printf("%d\n", success);
   return success;
 }
 
@@ -122,10 +131,14 @@ do_format (void)
   if (!dir_create (ROOT_DIR_SECTOR, 16))
     PANIC ("root directory creation failed");
   
+
+  //P4 Added Code: Adds the '.' and '..' entries to the root directory
+  //Ruben started driving
   root_dir = dir_open_root();
   dir_add(root_dir, ".", ROOT_DIR_SECTOR);
   dir_add(root_dir, "..", ROOT_DIR_SECTOR);
   dir_close(root_dir);
+  //Ruben stopped driving
   free_map_close ();
   printf ("done.\n");
 }

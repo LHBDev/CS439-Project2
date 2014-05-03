@@ -13,9 +13,7 @@
 
 struct inode;
 
-//Added Code
 char *extract_filename (char *);
-char *extract_pathname (char *);
 struct dir *dir_lookup_path (char *);
 
 /* Opening and closing directories. */
@@ -32,7 +30,6 @@ bool dir_add (struct dir *, const char *name, block_sector_t);
 bool dir_remove (struct dir *, const char *name);
 bool dir_readdir (struct dir *, char name[NAME_MAX + 1]);
 
-//ADDED
 bool dir_is_empty (struct inode *);
 
 #endif /* filesys/directory.h */

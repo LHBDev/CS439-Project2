@@ -22,7 +22,9 @@ struct dir_entry
     bool in_use;                        /* In use or free? */
   };
 
-//P4 Added Methods
+//Header code driven by both Ruben and Siva
+//P4 Added Code: Extract the very last token in a given pathname.
+//For example: "/a/b/c" would return c
 char *
 extract_filename (char *path_name)
 {
@@ -34,27 +36,11 @@ extract_filename (char *path_name)
   return result;
 }
 
-char *
-extract_pathname (char *path_name)
-{
-  char *result, *p1;
+//P4 Added Code: The mother of all methods. This goes through a 
+//given path name, opening directories along the way. Thanks to
+//strtok, obtaining the proper string is quite simple.
 
-  p1 = path_name;
-  if(*p1 == '/') {
-    p1 = strrchr(path_name, '/');
-    //BUGS HERE
-    if(!p1) {
-      result = malloc((p1 - path_name) * sizeof(char));
-      memcpy(result, path_name, (p1 - path_name));
-      p1 = strrchr(result, '/');
-      *p1 = '\0';
-      p1 = result;
-      free(result);
-    }
-  }
-  return p1;
-}
-
+//Siva started driving
 struct dir *
 dir_lookup_path (char *path_name)
 {
@@ -87,6 +73,7 @@ dir_lookup_path (char *path_name)
   free(tokenize);
   return result;
 }
+//Siva stopped driving
 
 /* Creates a directory with space for ENTRY_CNT entries in the
    given SECTOR.  Returns true if successful, false on failure. */
@@ -166,7 +153,7 @@ lookup (const struct dir *dir, const char *name,
   ASSERT (name != NULL);
 
   for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
-       ofs += sizeof e) {
+       ofs += sizeof e)
     if (e.in_use && !strcmp (name, e.name)) 
       {
         if (ep != NULL)
@@ -175,7 +162,6 @@ lookup (const struct dir *dir, const char *name,
           *ofsp = ofs;
         return true;
       }
-  }
   return false;
 }
 
@@ -275,9 +261,11 @@ dir_remove (struct dir *dir, const char *name)
   if (inode == NULL)
     goto done;
 
-  //ADDED CODE
-  if(inode_is_dir(inode) && dir_is_empty(inode))
+  /* Empty directory */
+  //Ruben started driving
+  if(inode_is_dir(inode) && !dir_is_empty(inode))
     goto done;
+  //Ruben stopped driving
 
   /* Erase directory entry. */
   e.in_use = false;
@@ -306,8 +294,10 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
       dir->pos += sizeof e;
       if (e.in_use)
         {
-          if(!strcmp(e.name, ".")|| !strcmp(e.name, ".."))
+          //Ruben started driving
+          if(!strcmp(e.name, ".") || !strcmp(e.name, ".."))
             continue;
+          //Ruben stopped driving
           strlcpy (name, e.name, NAME_MAX + 1);
           return true;
         } 
@@ -315,7 +305,9 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
   return false;
 }
 
-//HELPER FUNCTION TO CHECK IF DIR IS EMPTY
+//P4 Added Code: Checks if a directory is empty, in exception to the '.'
+// and the '..' entries
+//Siva started driving
 bool
 dir_is_empty (struct inode *dir_inode)
 {
@@ -331,3 +323,4 @@ dir_is_empty (struct inode *dir_inode)
   }
   return true;
 }
+//Siva stopped driving

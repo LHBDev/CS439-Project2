@@ -234,6 +234,9 @@ create (const char *file, unsigned initial_size)
 	if(!pointer_valid((void *) file))
 		exit(-1);
 
+	if(strlen(file) > NAME_MAX)
+    return false;
+
 	lock_acquire(&file_lock);
 	success = filesys_create(file, initial_size);
 	lock_release(&file_lock);
@@ -268,6 +271,10 @@ remove (const char *file)
  	thread's file_list and the fd is the index of the 
  	file_list (an array) that is returned. Otherwise, -1
  	is returned.*/
+
+//P4 Added code: If the 'file' we opened was a directory, we 
+//give it a different fd (usually fd + 128) and put it in the
+//threads dir_list.
 int
 open (const char *file)
 {
@@ -280,6 +287,9 @@ open (const char *file)
 	if(!pointer_valid((void *) file))
 		exit(-1);
 
+	if(!strcmp(file, ""))
+		return -1;
+
 	lock_acquire(&file_lock);
 	actual_file = filesys_open(file);
 	lock_release(&file_lock);
@@ -289,11 +299,9 @@ open (const char *file)
 		return -1;
 
 	inode = file_get_inode(actual_file);
-	// printf("joojo %p\n", inode);
 
 	if(inode_is_dir(inode))
 		{
-			// printf("yes\n");
 			actual_dir = dir_open(inode_reopen(inode));
 			//put the dir pointer into the thread's dir_list
 			for(i = 0; i < MAX_FILES; i++)
@@ -456,6 +464,9 @@ tell (int fd)
 	converting it to its referenced file, call the provided
 	method file_close within a lock. Then NULL out the proper
 	entry from the thread's file's list.*/
+
+//P4 Added Code : If the fd corresponds to a directory, we
+//call dir_close and remove it from the thread's dir list.
 void
 close (int fd)
 {
@@ -467,14 +478,16 @@ close (int fd)
 		exit(-1);
 
 	lock_acquire(&file_lock);
-	if(fd < MAX_FILES) {
-		fd_file = fd_to_file(fd);
-		file_close(fd_file);
-	}
-	else {
-		fd_dir = fd_to_dir(fd);
-		dir_close(fd_dir);
-	}
+	if(fd < MAX_FILES)
+		{
+			fd_file = fd_to_file(fd);
+			file_close(fd_file);
+		}
+	else
+		{
+			fd_dir = fd_to_dir(fd);
+			dir_close(fd_dir);
+		}
 	lock_release(&file_lock);
 
 	if(fd < MAX_FILES)
@@ -484,7 +497,11 @@ close (int fd)
 }
 //Siva stopped driving
 
-//FILESYS ADDED CODE
+/*Chdir system call - First checks the validity of dir. Then,
+	goes through the specified pathname, till we get to the last
+	directory. We close the opened directory and set the thread's 
+	cwd to the opened directory.*/
+//Ruben started driving
 bool
 chdir (const char *dir)
 {
@@ -526,7 +543,14 @@ chdir (const char *dir)
 
 	return true;
 }
+//Ruben stopped driving
 
+/*Mkdir system call - First checks the validity of dir. Then we call the 
+	filesys_create_dir method that creates
+	a directory and we then add the "." and the ".." entries to the
+	newly created dir. */
+
+//Siva started driving
 bool
 mkdir (const char *dir)
 {
@@ -546,15 +570,14 @@ mkdir (const char *dir)
 	new_file = filesys_open(dir);
 	new_dir = dir_open(file_get_inode(new_file));
 
-
 	parent_dir = dir_lookup_path(dir);
 	if(!parent_dir)
 		return false;
 	
-	// printf("asdf %p\n", parent_dir);
 	dir_lookup(parent_dir, new_dir_name, &dir_inode);
 	if(!dir_inode)
 		return false;
+
 	//add self pointer
 	dir_add(new_dir, ".", inode_get_inumber(file_get_inode(new_file)));
 
@@ -565,7 +588,12 @@ mkdir (const char *dir)
 	dir_close(new_dir);
 	return true;
 }
+//Siva stopped driving
 
+/*Readdir system call - First checks the validity of name and fd. Then,
+	we convert the fd to its corresponding directory and call the dir
+	readdir method on it. */
+//Ruben started driving
 bool
 readdir (int fd, char *name)
 {
@@ -578,14 +606,20 @@ readdir (int fd, char *name)
 	actual_dir = fd_to_dir(fd);
 
 	return dir_readdir(actual_dir, name);
-} 
+}
+//Ruben stopped driving
 
+/*Isdir system call - Due to the nature of our implementation of fd, an
+	fd that is greater than or equal to 128 should be a directory. */
+//Siva started driving
 bool
 isdir (int fd)
 {
 	return (fd >= MAX_FILES) ? true : false;
 }
 
+/*Inumber system call - Convert the fd to the specified dir/file and 
+	simply return its corresponding inode number. */
 int
 inumber (int fd)
 {
@@ -613,8 +647,7 @@ inumber (int fd)
 
 	return result;
 }
-
-//END OF FILESYS CODE
+//Siva stopped driving
 
 /*Start of helper methods*/
 
@@ -661,8 +694,10 @@ fd_to_file (int fd)
 
 	return fd_file;
 }
-//Siva stopped driving
 
+/*Returns a dir pointer (struct dir *) given a fd number.
+  Works in the same fashion as fd_to_file but a dir specified fd should
+  be greater than 128.*/
 struct dir *
 fd_to_dir (int fd)
 {
@@ -676,5 +711,6 @@ fd_to_dir (int fd)
 
 	return fd_dir;
 }
+//Siva stopped driving
 
 /*End of helper methods*/

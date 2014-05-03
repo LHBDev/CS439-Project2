@@ -1,4 +1,4 @@
 #!/bin/sh
 git add *
-git commit -m "Should be passing tests"
+git commit -m "25/50 Don't know how to run persistence..."
 git push -u origin file_system

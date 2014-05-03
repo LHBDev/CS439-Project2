@@ -112,11 +112,12 @@ start_process (void *file_name_)
 	child->parent->has_loaded_process = success;
 	sema_up(&child->parent->load_sema);
 
-	//Siva stopped driving
+	//update the child's cwd
 	if(child->parent->curr_dir)
 		child->curr_dir = dir_reopen(child->parent->curr_dir);
 	else
 		child->curr_dir = dir_open_root();
+	//Siva stopped driving
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);

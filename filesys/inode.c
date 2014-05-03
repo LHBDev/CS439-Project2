@@ -28,13 +28,13 @@ struct inode_disk
   {
     bool is_dir;                        /* True if directory. */
     off_t length;                       /* File size in bytes. */
-    off_t end;
-    off_t f_end;
-    off_t s_end;
+    off_t end;                          /* End of the direct blocks */
+    off_t f_end;                        /* End of the first indirect block */
+    off_t s_end;                        /* End of the second indirect block */
     unsigned magic;                     /* Magic number. */
-    block_sector_t first_indir;
-    block_sector_t second_indir;
-    block_sector_t inode_blocks[120];
+    block_sector_t first_indir;         /* Block of first indirect */
+    block_sector_t second_indir;        /* Block of second indirect */
+    block_sector_t inode_blocks[120];   /* Blocks specified directly */
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -54,10 +54,8 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
-    struct lock lock;
   };
 
-//Added methods
 static enum level find_indir (int);
 static bool allocate_sectors (int, struct inode_disk *);
 static bool allocate_direct (int, struct inode_disk *, int);
@@ -65,6 +63,12 @@ static bool allocate_first_indirect (int, struct inode_disk *, bool);
 static bool allocate_second_indirect (int, struct inode_disk *);
 static void deallocate_sectors (struct inode_disk *);
 
+
+//P4 Added Code: Given the number of sectors, determines the level of
+//indirect and returns an enum corresponding to it
+
+//Above declarations and definitions driven by both Ruben and Siva
+//Ruben started driving
 static enum level
 find_indir (int num_sectors)
 {
@@ -80,35 +84,34 @@ find_indir (int num_sectors)
   return result;
 }
 
+//P4 Added Code: Calls the allocation of the inode given the
+//level of indirect. Calls the respective methods. Returns if allocation
+//is successful or not.
+
 static bool
 allocate_sectors (int num_sectors, struct inode_disk *data)
 {
-  // enum level level_indir;
-
   if(num_sectors > 0)
     {
-      if(num_sectors > 120) {
+      if(num_sectors > DIRECT_SIZE) {
         return (allocate_direct(num_sectors, data, 0) &&
-                allocate_first_indirect(num_sectors - 120, data, false));
+                allocate_first_indirect(num_sectors - DIRECT_SIZE, data, false));
         if(num_sectors > 128 * 128)
-          PANIC ("TOO LAZY DO LATER");
+          allocate_second_indirect(num_sectors - DIRECT_SIZE, data);
       } else
         return allocate_direct(num_sectors, data, 0);
-
-      // level_indir = find_indir(num_sectors);
-
-      // if(level_indir == DIRECT)
-      //   return allocate_direct(num_sectors, data, 0);
-      // else if (level_indir  == FIRST_INDIRECT)
-      //   return allocate_first_indirect(num_sectors, data, false);
-      // else
-      //   return allocate_second_indirect(num_sectors, data);
     }
   else
     return true;
 }
 
-//allocate blocks directly for new inode
+//Ruben stopped driving
+
+//P4 Added Code: Performs the allocation of the inode given the
+//level of indirect and zeros out the data.
+//Returns if allocation is successful or not.
+
+//Siva started driving
 static bool
 allocate_direct (int num_sectors, struct inode_disk *data, int indir)
 {
@@ -140,6 +143,9 @@ allocate_direct (int num_sectors, struct inode_disk *data, int indir)
   return true;
 }
 
+//P4 Added Code: Calls the actual allocating method, depending on the type
+//of the call made, second_indir or not.
+
 static bool
 allocate_first_indirect (int num_sectors, struct inode_disk *data, bool second_indir)
 {
@@ -156,6 +162,9 @@ allocate_first_indirect (int num_sectors, struct inode_disk *data, bool second_i
   return true;
 }
 
+//P4 Added Code: Calls upon allocate_first_indir for every segment that
+//should be allocated 
+
 static bool
 allocate_second_indirect (int num_sectors, struct inode_disk *data)
 {
@@ -167,6 +176,11 @@ allocate_second_indirect (int num_sectors, struct inode_disk *data)
   return true;
 }
 
+//Siva stopped driving
+
+//P4 Added Code: Free up the allocatd blocks.
+
+//Ruben started driving
 static void
 deallocate_sectors (struct inode_disk *data)
 {
@@ -180,6 +194,10 @@ deallocate_sectors (struct inode_disk *data)
    within INODE.
    Returns -1 if INODE does not contain data for a byte at offset
    POS. */
+
+//P4 Added Code: Properly obtain the sector by tracing the
+//level of indir, and returning the index from that indirect block array.
+
 static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos) 
 {
@@ -206,6 +224,8 @@ byte_to_sector (const struct inode *inode, off_t pos)
     return -1;
 }
 
+//Ruben stopped driving
+
 /* List of open inodes, so that opening a single inode twice
    returns the same `struct inode'. */
 static struct list open_inodes;
@@ -222,6 +242,12 @@ inode_init (void)
    device.
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
+
+//P4 Added Code: We pass in an extra is_dir variable that specifies
+//if the inode corresponds to a directory or not. Otherwise, 
+//we initialize other essential properties of the inode and call upon
+//our allocate_sectors method.
+
 bool
 inode_create (block_sector_t sector, off_t length, bool is_dir)
 {
@@ -239,6 +265,7 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
     {
       size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
+      //Siva started driving
       disk_inode->magic = INODE_MAGIC;
       disk_inode->is_dir = is_dir;
       disk_inode->end = 0;
@@ -248,6 +275,7 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
         block_write (fs_device, sector, disk_inode);
         success = true;
       }
+      //Siva stopped driving
       free (disk_inode);
     }
   return success;
@@ -285,7 +313,6 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
-  lock_init(&inode->lock);
   block_read (fs_device, inode->sector, &inode->data);
   return inode;
 }
@@ -351,8 +378,12 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   off_t bytes_read = 0;
   uint8_t *bounce = NULL;
 
+  //P4 Added Code: Reading past the length of the file should return zero
+
+  //Ruben started driving
   if(offset >= inode->data.length)
     return bytes_read;
+  //Ruben started driving
 
   while (size > 0) 
     {
@@ -415,21 +446,21 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   if (inode->deny_write_cnt)
     return 0;
 
-  // lock_acquire(&inode->lock);
+  //P4 Added Code: Writing past the length of the file should grow the file
+
+  //Siva started driving
   if(offset + size > inode->data.length) {
     if(allocate_sectors(DIV_ROUND_UP(offset+size, BLOCK_SECTOR_SIZE), &inode->data)) {
       inode->data.length = offset + size;
       block_write(fs_device, inode->sector, inode);
     }
   }
-  // lock_release(&inode->lock);
+  //Siva stopped driving
 
   while (size > 0) 
     {
       /* Sector to write, starting byte offset within sector. */
       block_sector_t sector_idx = byte_to_sector (inode, offset);
-      // if(offset > 64000)
-      //   printf("%d %d\n", offset, (int) sector_idx);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
@@ -505,8 +536,12 @@ inode_length (const struct inode *inode)
   return inode->data.length;
 }
 
+//P4 Added Code: Returns true if the given inode is a directory
+
+//Siva started driving
 bool
 inode_is_dir (struct inode *inode)
 {
   return inode->data.is_dir;
 }
+//Siva stopped driving
