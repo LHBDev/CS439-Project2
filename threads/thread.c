@@ -189,10 +189,8 @@ thread_create (const char *name, int priority,
 	//Point the created thread to its parent
 	//Siva started driving
 	t->parent = thread_current();
-	//Siva stopped driving
-
-	// P4 Added Code;
 	t->curr_dir = thread_current()->curr_dir;
+	//Siva stopped driving
 
 	/* Prepare thread for first run by initializing its stack.
 		 Do this atomically so intermediate values for the 'stack' 
