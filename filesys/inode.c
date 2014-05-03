@@ -184,10 +184,12 @@ allocate_second_indirect (int num_sectors, struct inode_disk *data)
 static void
 deallocate_sectors (struct inode_disk *data)
 {
-  while(data->end > 0)
-    free_map_release(data->inode_blocks[data->end--], 1);
+  while(data->end > 0){
+    // printf("end:%d\n", data->end);
+    free_map_release(data->inode_blocks[data->end--], 0);}
   free_map_release(data->first_indir, data->f_end);
   free_map_release(data->second_indir, data->s_end);
+  // printf("HRERERERERER\n\n\n");
 }
 
 /* Returns the block device sector that contains byte offset POS

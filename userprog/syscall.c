@@ -251,13 +251,14 @@ bool
 remove (const char *file)
 {
 	bool success;
-
+	// printf("%s\n", file); 
 	if(!pointer_valid((void *) file))
 		exit(-1);
 
 	lock_acquire(&file_lock);
 	success = filesys_remove(file);
 	lock_release(&file_lock);
+
 	return success;
 }
 

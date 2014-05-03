@@ -278,6 +278,7 @@ dir_remove (struct dir *dir, const char *name)
 
  done:
   inode_close (inode);
+
   return success;
 }
 
